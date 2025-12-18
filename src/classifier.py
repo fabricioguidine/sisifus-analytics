@@ -116,6 +116,8 @@ class EmailClassifier:
             # Company rejecting you - look for company/employer language
             r"we.*regret.*inform",
             r"we.*regret.*to.*inform",
+            r"regret.*to.*inform.*you",  # Sometimes without "we"
+            r"regret.*inform.*you",
             r"unfortunately.*not.*selected",
             r"unfortunately.*decided.*not.*to.*proceed",
             r"we.*decided.*not.*to.*proceed",

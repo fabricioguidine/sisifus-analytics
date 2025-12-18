@@ -131,6 +131,26 @@ class EmailClassifier:
             self.compiled_patterns[status] = [
                 re.compile(pattern, re.IGNORECASE) for pattern in patterns
             ]
+        
+        # Job-related keywords to filter out non-job emails
+        self.job_keywords = [
+            r"job", r"application", r"interview", r"recruiter", r"hiring",
+            r"position", r"candidate", r"opportunity", r"apply", r"career",
+            r"resume", r"cv", r"employment", r"vacancy", r"role",
+            r"application.*submitted", r"thank.*for.*your.*application",
+            r"offer", r"rejection", r"withdraw.*application",
+            r"linkedin", r"indeed", r"glassdoor", r"monster", r"ziprecruiter",
+            r"ats", r"applicant.*tracking", r"job.*board"
+        ]
+        self.job_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.job_keywords]
+    
+    def is_job_related(self, subject: str, body: str, from_address: str = "") -> bool:
+        """Check if email is related to job applications"""
+        text = f"{subject} {body[:2000]} {from_address}".lower()
+        # Check if any job keyword matches
+        matches = sum(1 for pattern in self.job_patterns if pattern.search(text))
+        # Need at least 1-2 matches to be considered job-related
+        return matches >= 1
     
     def classify_email(self, subject: str, body: str, from_address: str = "") -> Tuple[str, float]:
         """
@@ -139,7 +159,12 @@ class EmailClassifier:
         Returns:
             Tuple of (status, confidence_score)
             confidence_score is between 0.0 and 1.0
+            Returns ("not_job_related", 0.0) if email is not job-related
         """
+        # First check if email is job-related
+        if not self.is_job_related(subject, body, from_address):
+            return ("not_job_related", 0.0)
+        
         # Optimize: Limit body length for performance (first 5000 chars should be enough)
         body_preview = body[:5000].lower() if body else ""
         subject_lower = subject.lower() if subject else ""

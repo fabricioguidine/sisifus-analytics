@@ -88,26 +88,34 @@ class AnalyticsGenerator:
     
     def generate_summary(self) -> Dict:
         """Generate summary statistics"""
-        # Calculate total applications (exclude no_reply from application count)
-        application_statuses = [s for s in self.stats["by_status"].keys() if s != "no_reply"]
+        # Exclude non-job emails from application count
+        excluded_statuses = {"no_reply", "not_job_related"}
+        
+        # Calculate total applications (exclude no_reply and not_job_related)
         total_applications = sum(
             count for status, count in self.stats["by_status"].items() 
-            if status != "no_reply"
+            if status not in excluded_statuses
         )
         
         # Use applied + confirmation as initial applications
         applied_count = self.stats["by_status"].get("applied", 0)
         confirmation_count = self.stats["by_status"].get("confirmation", 0)
-        # If we don't have explicit applied/confirmation, use total - no_reply
-        if total_applications == 0:
-            total_applications = self.stats["total_emails"]
         
-        accuracy = self.calculate_accuracy()
+        # Calculate accuracy only for job-related emails
+        job_related_emails = [
+            email for email in self.emails 
+            if email.get("status") not in excluded_statuses
+        ]
+        if job_related_emails:
+            accuracy = self._calculate_accuracy_for_emails(job_related_emails)
+        else:
+            accuracy = 0.0
         
         summary = {
             "total_applications": total_applications,
             "status_breakdown": dict(self.stats["by_status"]),
-            "total_companies": len(self.stats["by_company"]),
+            "total_companies": len([c for c, data in self.stats["by_company"].items() 
+                                    if any(s not in excluded_statuses for s in data.get("statuses", []))]),
             "date_range": {
                 "earliest": self.stats["date_range"]["earliest"].isoformat() 
                     if self.stats["date_range"]["earliest"] else None,
@@ -123,11 +131,25 @@ class AnalyticsGenerator:
             ),
             "withdrew_count": self.stats["by_status"].get("withdrew", 0),
             "no_reply_count": self.stats["by_status"].get("no_reply", 0),
+            "not_job_related_count": self.stats["by_status"].get("not_job_related", 0),
             "applied_count": applied_count,
             "confirmation_count": confirmation_count,
             "accuracy_percentage": accuracy,
         }
         return summary
+    
+    def _calculate_accuracy_for_emails(self, emails: List[Dict]) -> float:
+        """Calculate accuracy for a specific set of emails"""
+        if not emails:
+            return 0.0
+        
+        high_confidence_count = sum(
+            1 for email in emails 
+            if email.get("confidence", 0.0) > 0.5
+        )
+        
+        accuracy_percentage = (high_confidence_count / len(emails)) * 100
+        return round(accuracy_percentage, 2)
     
     def generate_sankey_diagram(self) -> go.Figure:
         """Generate Sankey diagram similar to the image"""
@@ -135,20 +157,16 @@ class AnalyticsGenerator:
         applied_count = self.stats["by_status"].get("applied", 0)
         recruiter_count = self.stats["by_status"].get("confirmation", 0)
         
-        # Calculate total applications
-        # If we have explicit applied/confirmation, use sum
-        # Otherwise, calculate from all statuses except no_reply
+        # Calculate total applications (exclude non-job emails)
+        excluded_statuses = {"no_reply", "not_job_related"}
+        
         if applied_count > 0 or recruiter_count > 0:
             total_applications = applied_count + recruiter_count
         else:
             total_applications = sum(
                 count for status, count in self.stats["by_status"].items() 
-                if status not in ["no_reply", "applied", "confirmation"]
+                if status not in excluded_statuses
             )
-        
-        # If still 0, use total emails
-        if total_applications == 0:
-            total_applications = self.stats["total_emails"]
         
         # Build flow data
         labels = []

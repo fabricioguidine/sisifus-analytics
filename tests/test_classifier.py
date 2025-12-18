@@ -146,26 +146,34 @@ class TestEmailClassifier:
         assert all("company" in email for email in classified)
     
     def test_no_reply_classification(self, classifier):
-        """Test that unrelated emails get no_reply status"""
+        """Test that job-related emails without status match get no_reply"""
+        subject = "Job opportunity"
+        body = "We have a position. Contact us if interested."
+        status, confidence = classifier.classify_email(subject, body)
+        assert status == "no_reply"
+        assert confidence == 0.0
+    
+    def test_not_job_related_classification(self, classifier):
+        """Test that unrelated emails get not_job_related status"""
         subject = "Newsletter"
         body = "Check out our latest products"
         status, confidence = classifier.classify_email(subject, body)
-        assert status == "no_reply"
+        assert status == "not_job_related"
         assert confidence == 0.0
     
     def test_confidence_scores(self, classifier):
         """Test that confidence scores are reasonable"""
         test_cases = [
-            ("Application submitted", "Thank you for applying"),
-            ("First Interview", "Phone screen invitation"),
-            ("Job Offer", "We are pleased to offer"),
-            ("Rejected", "Not moving forward"),
+            ("Job Application submitted", "Thank you for applying to our position"),
+            ("First Interview", "Phone screen invitation for the job"),
+            ("Job Offer", "We are pleased to offer you the position"),
+            ("Application Rejected", "Not moving forward with your application"),
         ]
         
         for subject, body in test_cases:
             status, confidence = classifier.classify_email(subject, body)
             assert 0.0 <= confidence <= 1.0
-            if status != "no_reply":
+            if status not in ["no_reply", "not_job_related"]:
                 assert confidence > 0.0
 
 

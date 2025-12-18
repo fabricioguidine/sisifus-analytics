@@ -163,8 +163,6 @@ def main():
     print(f"[SUCCESS] Classified {len(classified_emails)} emails")
     if error_count > 0:
         print(f"[INFO] {error_count} emails had classification errors")
-    if error_count > 0:
-        print(f"[WARNING] {error_count} emails had classification errors")
     print()
     
     print("Step 4: Generating analytics...")
@@ -177,13 +175,14 @@ def main():
     print("=" * 60)
     print("SUMMARY")
     print("=" * 60)
-    print(f"Total Applications: {summary['total_applications']}")
+    print(f"Total Job-Related Emails: {summary['total_applications']}")
     print(f"Rejected: {summary['rejected_count']}")
     print(f"Offers: {summary['offers_count']}")
     print(f"Accepted: {summary['accepted_count']}")
     print(f"Interviews: {summary['interviews_count']}")
     print(f"Withdrew: {summary['withdrew_count']}")
-    print(f"No Reply: {summary['no_reply_count']}")
+    print(f"No Reply (Job-related): {summary['no_reply_count']}")
+    print(f"Not Job-Related: {summary.get('not_job_related_count', 0)}")
     print(f"Total Companies: {summary['total_companies']}")
     print(f"Classification Accuracy: {summary['accuracy_percentage']}%")
     print()

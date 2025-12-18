@@ -173,38 +173,41 @@ class EmailClassifier:
         self.job_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.job_keywords]
     
     def is_job_related(self, subject: str, body: str, from_address: str = "") -> bool:
-        """Check if email is related to job applications - stricter filtering"""
+        """Check if email is related to job applications - improved filtering"""
         text = f"{subject} {body[:2000]} {from_address}".lower()
         
-        # Exclude common non-job email patterns
+        # Exclude common non-job email patterns (strong exclusion signals)
         exclusion_patterns = [
             r"newsletter", r"unsubscribe", r"subscription", r"promo", r"promotion",
             r"black.*friday", r"cyber.*monday", r"sale", r"discount", r"coupon",
-            r"receipt", r"invoice", r"payment", r"order.*confirmation",
-            r"flight", r"hotel", r"booking", r"reservation", r"airbnb",
-            r"shipping", r"delivery", r"tracking", r"package",
-            r"password", r"reset", r"verify.*account", r"security.*alert",
-            r"instagram", r"facebook", r"twitter", r"social.*media",
+            r"receipt", r"invoice", r"payment.*received", r"order.*confirmation",
+            r"flight.*confirmation", r"hotel.*booking", r"airbnb.*reservation",
+            r"shipping.*confirmation", r"package.*delivered", r"tracking.*number",
+            r"password.*reset", r"verify.*email.*address", r"account.*security",
+            r"instagram.*follow", r"facebook.*friend", r"twitter.*notification",
         ]
         exclusion_regex = [re.compile(p, re.IGNORECASE) for p in exclusion_patterns]
         
-        # If it matches exclusion patterns heavily, likely not job-related
+        # If it matches exclusion patterns heavily AND has no job keywords, exclude it
         exclusion_matches = sum(1 for pattern in exclusion_regex if pattern.search(text))
-        if exclusion_matches >= 2:  # Strong exclusion signal
-            return False
+        if exclusion_matches >= 2:
+            # Check if there are job keywords despite exclusion patterns
+            job_keyword_check = sum(1 for pattern in self.job_patterns if pattern.search(text))
+            if job_keyword_check == 0:  # No job keywords at all
+                return False
         
         # Check if any job keyword matches
         matches = sum(1 for pattern in self.job_patterns if pattern.search(text))
         
-        # Stricter: need stronger job signal
+        # Job-related company domains/names
         job_companies = ["linkedin", "indeed", "glassdoor", "monster", "ziprecruiter", 
                          "flexjobs", "recruiter", "hiring", "careers", "talent",
                          "workday", "greenhouse", "lever", "smartrecruiters"]
         company_match = any(jc in from_address.lower() for jc in job_companies)
         
-        # Require stronger signals for job-related classification
-        # Either multiple keyword matches OR job company domain
-        return (matches >= 2) or (company_match and matches >= 1)
+        # Job-related if: at least 1 keyword match OR job company domain
+        # But exclude if strong exclusion signals (handled above)
+        return (matches >= 1) or company_match
     
     def classify_email(self, subject: str, body: str, from_address: str = "") -> Tuple[str, float]:
         """

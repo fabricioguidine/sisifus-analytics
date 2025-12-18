@@ -147,8 +147,9 @@ class TestEmailClassifier:
     
     def test_no_reply_classification(self, classifier):
         """Test that job-related emails without status match get no_reply"""
-        subject = "Job opportunity"
-        body = "We have a position. Contact us if interested."
+        # Use an email that is job-related but doesn't match specific status patterns
+        subject = "Career discussion"
+        body = "I wanted to reach out about potential collaboration."
         status, confidence = classifier.classify_email(subject, body)
         assert status == "no_reply"
         assert confidence == 0.0

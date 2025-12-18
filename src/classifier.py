@@ -127,7 +127,8 @@ class EmailClassifier:
             r"decided.*not.*move.*forward",  # Sometimes without "we"
             r"other.*candidates",
             r"better.*fit.*another",
-            r"not.*right.*fit.*this.*position",
+            r"not.*right.*fit",
+            r"not.*fit.*at.*this.*time",
             r"we.*not.*advancing",
             # Generic rejection phrases (company perspective)
             r"not.*selected.*position",

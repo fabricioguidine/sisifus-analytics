@@ -89,9 +89,13 @@ class EmailStorage:
             traceback.print_exc()
             return False
     
-    def load_emails(self) -> Optional[List[Dict]]:
+    def load_emails(self, months: int = None, year: int = None) -> Optional[List[Dict]]:
         """
-        Load emails from JSON file in input folder
+        Load emails from JSON file in input folder with optional date filtering
+        
+        Args:
+            months: Filter to last N months (None = no filter)
+            year: Filter to specific year (None = no filter)
         
         Returns:
             List of email dictionaries, or None if file doesn't exist or error occurs
@@ -104,29 +108,69 @@ class EmailStorage:
             file_size = self.storage_file.stat().st_size / (1024*1024)
             print(f"[INFO] File size: {file_size:.2f} MB")
             
+            if months is not None or year is not None:
+                filter_desc = []
+                if year:
+                    filter_desc.append(f"year {year}")
+                if months:
+                    filter_desc.append(f"last {months} months")
+                print(f"[INFO] Filtering emails: {', '.join(filter_desc)}")
+            
             print("[INFO] Reading JSON file...")
             with open(self.storage_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            emails = data.get("emails", [])
-            print(f"[INFO] Found {len(emails)} emails in file")
+            all_emails = data.get("emails", [])
+            print(f"[INFO] Found {len(all_emails)} emails in file")
             
-            if len(emails) == 0:
+            if len(all_emails) == 0:
                 print("[WARNING] No emails found in file")
-                return emails
+                return []
             
-            # Convert ISO date strings back to datetime objects
-            print("[INFO] Processing email dates...")
+            # Filter emails during loading if date criteria provided
+            now = datetime.now()
+            from dateutil.relativedelta import relativedelta
+            
+            emails = []
+            cutoff_date = None
+            if months is not None:
+                cutoff_date = now - relativedelta(months=months)
+            
+            print("[INFO] Processing and filtering emails...")
             processed_count = 0
             error_count = 0
-            for email_data in tqdm(emails, desc="Loading emails", unit="email"):
+            filtered_out = 0
+            
+            for email_data in tqdm(all_emails, desc="Loading emails", unit="email"):
                 try:
+                    # Convert date string to datetime
+                    email_date = None
                     if "date" in email_data and email_data["date"]:
                         try:
-                            email_data["date"] = datetime.fromisoformat(email_data["date"])
+                            if isinstance(email_data["date"], str):
+                                email_data["date"] = datetime.fromisoformat(email_data["date"].replace('Z', '+00:00'))
+                            email_date = email_data["date"]
                         except (ValueError, TypeError):
-                            # If parsing fails, keep as string
+                            # If parsing fails, skip date filtering for this email
                             pass
+                    
+                    # Apply date filtering if criteria provided
+                    if email_date:
+                        # Filter by year
+                        if year is not None and email_date.year != year:
+                            filtered_out += 1
+                            continue
+                        
+                        # Filter by months
+                        if cutoff_date and email_date < cutoff_date:
+                            filtered_out += 1
+                            continue
+                    elif (months is not None or year is not None):
+                        # If we have date filters but email has no valid date, skip it
+                        filtered_out += 1
+                        continue
+                    
+                    emails.append(email_data)
                     processed_count += 1
                 except Exception as e:
                     error_count += 1
@@ -134,8 +178,13 @@ class EmailStorage:
                         print(f"\n[WARNING] Error processing email: {e}")
                     continue
             
+            if filtered_out > 0:
+                print(f"[INFO] Filtered out {filtered_out} emails based on date criteria")
+            
             if error_count > 0:
                 print(f"\n[WARNING] {error_count} emails had processing errors")
+            
+            print(f"[SUCCESS] Loaded {len(emails)} emails (from {len(all_emails)} total)")
             
             return emails
             

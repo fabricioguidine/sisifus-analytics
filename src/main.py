@@ -52,8 +52,70 @@ def filter_emails_by_date(emails: list, months: int = None, year: int = None) ->
     return filtered
 
 
-def load_emails_from_input(months: int = None, year: int = None) -> list:
-    """Load emails from input folder"""
+def prompt_for_date_filter() -> tuple:
+    """Prompt user for date filtering options"""
+    print()
+    print("=" * 60)
+    print("Date Filtering Options")
+    print("=" * 60)
+    print("You can filter emails by date to only process recent job applications.")
+    print("This will speed up processing and focus on relevant emails.")
+    print()
+    
+    try:
+        filter_choice = input("Filter emails by date? (y/n) [default: n]: ").strip().lower()
+        if filter_choice not in ['y', 'yes']:
+            return None, None
+        
+        print()
+        print("Filter options:")
+        print("  1. Last X months (e.g., 6 for last 6 months)")
+        print("  2. Specific year (e.g., 2025)")
+        print("  3. Both (year + months)")
+        print("  4. No filter (process all emails)")
+        
+        choice = input("\nEnter your choice (1-4) [default: 4]: ").strip()
+        
+        months = None
+        year = None
+        
+        if choice == '1':
+            months_input = input("Enter number of months: ").strip()
+            try:
+                months = int(months_input)
+            except ValueError:
+                print("[WARNING] Invalid number, skipping month filter")
+        elif choice == '2':
+            year_input = input("Enter year (e.g., 2025): ").strip()
+            try:
+                year = int(year_input)
+            except ValueError:
+                print("[WARNING] Invalid year, skipping year filter")
+        elif choice == '3':
+            year_input = input("Enter year (e.g., 2025): ").strip()
+            months_input = input("Enter number of months: ").strip()
+            try:
+                year = int(year_input)
+                months = int(months_input)
+            except ValueError:
+                print("[WARNING] Invalid input, using defaults")
+        
+        if months or year:
+            print()
+            if year:
+                print(f"[INFO] Will filter to year {year}")
+            if months:
+                print(f"[INFO] Will filter to last {months} months")
+            print()
+        
+        return months, year
+    except (KeyboardInterrupt, EOFError):
+        print("\n[INFO] No date filter applied (processing all emails)")
+        return None, None
+
+
+def load_emails_from_input(months: int = None, year: int = None, prompt_if_missing: bool = True) -> list:
+    """Load emails from input folder with optional date filtering"""
     storage = EmailStorage()
     
     if not storage.file_exists():
@@ -64,25 +126,19 @@ def load_emails_from_input(months: int = None, year: int = None) -> list:
         print("  This will auto-detect .mbox files in the input/ folder")
         return None
     
-    emails = storage.load_emails()
+    # If no date filter provided and we should prompt, ask user
+    if (months is None and year is None) and prompt_if_missing:
+        file_size = storage.storage_file.stat().st_size / (1024*1024)
+        if file_size > 50:  # Only prompt for larger files (> 50MB)
+            months, year = prompt_for_date_filter()
+    
+    # Load emails with filtering applied during loading
+    emails = storage.load_emails(months=months, year=year)
     
     if emails:
         metadata = storage.get_metadata()
-        print(f"[SUCCESS] Loaded {len(emails)} emails from {storage.storage_file}")
         if metadata:
             print(f"  Export date: {metadata.get('export_date', 'Unknown')}")
-        
-        # Apply date filtering
-        if months is not None or year is not None:
-            original_count = len(emails)
-            emails = filter_emails_by_date(emails, months=months, year=year)
-            filtered_count = len(emails)
-            print(f"[INFO] Filtered to {filtered_count} emails", end="")
-            if months:
-                print(f" (last {months} months)", end="")
-            if year:
-                print(f" (year {year})", end="")
-            print(f" from {original_count} total")
     else:
         print(f"[ERROR] Failed to load emails from {storage.storage_file}")
     
@@ -164,7 +220,9 @@ def main():
             print("ERROR: --extract-only cannot be used with --use-input")
             print("Use --extract-only to fetch and save emails, or --use-input to load saved emails.")
             sys.exit(1)
-        emails = load_emails_from_input(months=args.months, year=args.year)
+        # Only prompt if no CLI args provided for date filtering
+        prompt_for_filter = (args.months is None and args.year is None)
+        emails = load_emails_from_input(months=args.months, year=args.year, prompt_if_missing=prompt_for_filter)
         if not emails:
             sys.exit(1)
     else:

@@ -347,13 +347,14 @@ class AnalyticsGenerator:
             values.append(flow_counts["no_reply"])
             colors.append(color_map["no_reply"])
         
-        # Interview stages with flows
+        # Interview stages with flows - only connect consecutive stages
         interview_stage_indices = {}
         sorted_stages = sorted(set(list(flow_counts["interview_reached"].keys()) + 
                                    list(flow_counts["rejected_from_interview"].keys()) +
                                    list(flow_counts["withdrew_from_interview"].keys())))
         
         last_stage_idx = total_idx
+        last_stage_num = 0  # Track the actual stage number
         
         for stage_num in sorted_stages:
             # Create interview stage node
@@ -369,11 +370,29 @@ class AnalyticsGenerator:
             labels[stage_idx] = f"{stage_label} ({total_at_stage})"
             interview_stage_indices[stage_num] = stage_idx
             
-            # Connect from previous stage or total
-            source_indices.append(last_stage_idx)
-            target_indices.append(stage_idx)
-            values.append(total_at_stage)
-            colors.append(color_map["interview"])
+            # Only connect from previous consecutive stage
+            # If there's a gap (e.g., going from 3 to 5), connect from the last consecutive stage
+            if last_stage_num > 0 and stage_num == last_stage_num + 1:
+                # Consecutive stage - connect from previous
+                source_indices.append(last_stage_idx)
+                target_indices.append(stage_idx)
+                values.append(total_at_stage)
+                colors.append(color_map["interview"])
+            elif last_stage_num == 0:
+                # First interview stage - connect from total
+                source_indices.append(total_idx)
+                target_indices.append(stage_idx)
+                values.append(total_at_stage)
+                colors.append(color_map["interview"])
+            else:
+                # Gap detected (e.g., 3 -> 5) - don't connect directly
+                # Instead, connect from total or the last stage, but this shouldn't happen
+                # in normal flow. For now, we'll still connect but log it.
+                # Actually, if there's a gap, we should connect from total as a new path
+                source_indices.append(total_idx)
+                target_indices.append(stage_idx)
+                values.append(total_at_stage)
+                colors.append(color_map["interview"])
             
             # Flow to rejected (companies rejected after this interview)
             if rejected_after > 0:
@@ -393,10 +412,10 @@ class AnalyticsGenerator:
                 values.append(withdrew_after)
                 colors.append(color_map["withdrew"])
             
-            # If no next stage and no rejection/withdrew, mark as no progression
+            # If no next consecutive stage exists, check if companies didn't progress
             next_stage = stage_num + 1
             if next_stage not in sorted_stages and reached > 0:
-                # These companies reached this stage but didn't advance
+                # These companies reached this stage but didn't advance to next stage
                 no_progress_idx = get_or_add_label(f"No Progress After Interview {stage_num}")
                 labels[no_progress_idx] = f"No Progress ({reached})"
                 source_indices.append(stage_idx)
@@ -404,7 +423,9 @@ class AnalyticsGenerator:
                 values.append(reached)
                 colors.append(color_map["no_reply"])
             
+            # Update tracking for next iteration
             last_stage_idx = stage_idx
+            last_stage_num = stage_num
         
         # Offer flow (from last interview stage)
         if flow_counts["offer"] > 0 or flow_counts["accepted"] > 0 or flow_counts["declined_offer"] > 0:

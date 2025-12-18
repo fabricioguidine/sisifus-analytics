@@ -332,13 +332,18 @@ class AnalyticsGenerator:
             values.append(flow_counts["rejected_direct"])
             colors.append(color_map["rejected"])
         
-        if flow_counts["withdrew_direct"] > 0:
-            withdrew_direct_idx = get_or_add_label("Withdrew (No Interview)")
-            labels[withdrew_direct_idx] = f"Withdrew ({flow_counts['withdrew_direct']})"
-            source_indices.append(total_idx)
-            target_indices.append(withdrew_direct_idx)
-            values.append(flow_counts["withdrew_direct"])
-            colors.append(color_map["withdrew"])
+        # Create single Withdrew node (will be populated later if needed)
+        total_withdrew = flow_counts["withdrew_direct"] + sum(flow_counts["withdrew_from_interview"].values())
+        withdrew_idx = None
+        if total_withdrew > 0:
+            withdrew_idx = get_or_add_label("Withdrew")
+            labels[withdrew_idx] = f"Withdrew ({total_withdrew})"
+            if flow_counts["withdrew_direct"] > 0:
+                # Direct withdrew (no interview)
+                source_indices.append(total_idx)
+                target_indices.append(withdrew_idx)
+                values.append(flow_counts["withdrew_direct"])
+                colors.append(color_map["withdrew"])
         
         # Create single Ghosted node (will be populated later if needed)
         total_ghosted = flow_counts["ghosted_direct"] + sum(flow_counts["ghosted_from_interview"].values())
@@ -431,10 +436,12 @@ class AnalyticsGenerator:
             
             # Flow to withdrew (companies that withdrew after this interview)
             if withdrew_after > 0:
-                withdrew_after_idx = get_or_add_label(f"Withdrew After Interview {stage_num}")
-                labels[withdrew_after_idx] = f"Withdrew ({withdrew_after})"
+                # Use the single Withdrew node (created earlier)
+                if withdrew_idx is None:
+                    withdrew_idx = get_or_add_label("Withdrew")
+                    labels[withdrew_idx] = f"Withdrew ({total_withdrew})"
                 source_indices.append(stage_idx)
-                target_indices.append(withdrew_after_idx)
+                target_indices.append(withdrew_idx)
                 values.append(withdrew_after)
                 colors.append(color_map["withdrew"])
             

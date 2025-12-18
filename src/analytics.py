@@ -218,7 +218,6 @@ class AnalyticsGenerator:
         
         # Count companies by their actual flow outcome
         flow_counts = {
-            "interview_reached": {},  # interview stage -> count (for progression only)
             "rejected_from_interview": {},  # interview stage -> count (rejected after this stage)
             "rejected_direct": 0,  # rejected without interview
             "withdrew_from_interview": {},  # interview stage -> count
@@ -357,8 +356,7 @@ class AnalyticsGenerator:
         # Interview stages with flows - only connect consecutive stages
         # If a higher stage exists, assume all previous stages were reached
         interview_stage_indices = {}
-        existing_stages = sorted(set(list(flow_counts["interview_reached"].keys()) + 
-                                    list(flow_counts["rejected_from_interview"].keys()) +
+        existing_stages = sorted(set(list(flow_counts["rejected_from_interview"].keys()) +
                                     list(flow_counts["withdrew_from_interview"].keys()) +
                                     list(flow_counts["ghosted_from_interview"].keys())))
         
@@ -380,10 +378,10 @@ class AnalyticsGenerator:
             stage_idx = get_or_add_label(stage_label)
             
             # Count companies that reached this stage
-            reached = flow_counts["interview_reached"].get(stage_num, 0)
             rejected_after = flow_counts["rejected_from_interview"].get(stage_num, 0)
             withdrew_after = flow_counts["withdrew_from_interview"].get(stage_num, 0)
-            total_at_stage = reached + rejected_after + withdrew_after
+            ghosted_after = flow_counts["ghosted_from_interview"].get(stage_num, 0)
+            total_at_stage = rejected_after + withdrew_after + ghosted_after
             
             # If this is a missing intermediate stage (inferred from higher stages),
             # use the count from the next stage that has data

@@ -173,16 +173,38 @@ class EmailClassifier:
         self.job_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.job_keywords]
     
     def is_job_related(self, subject: str, body: str, from_address: str = "") -> bool:
-        """Check if email is related to job applications"""
+        """Check if email is related to job applications - stricter filtering"""
         text = f"{subject} {body[:2000]} {from_address}".lower()
+        
+        # Exclude common non-job email patterns
+        exclusion_patterns = [
+            r"newsletter", r"unsubscribe", r"subscription", r"promo", r"promotion",
+            r"black.*friday", r"cyber.*monday", r"sale", r"discount", r"coupon",
+            r"receipt", r"invoice", r"payment", r"order.*confirmation",
+            r"flight", r"hotel", r"booking", r"reservation", r"airbnb",
+            r"shipping", r"delivery", r"tracking", r"package",
+            r"password", r"reset", r"verify.*account", r"security.*alert",
+            r"instagram", r"facebook", r"twitter", r"social.*media",
+        ]
+        exclusion_regex = [re.compile(p, re.IGNORECASE) for p in exclusion_patterns]
+        
+        # If it matches exclusion patterns heavily, likely not job-related
+        exclusion_matches = sum(1 for pattern in exclusion_regex if pattern.search(text))
+        if exclusion_matches >= 2:  # Strong exclusion signal
+            return False
+        
         # Check if any job keyword matches
         matches = sum(1 for pattern in self.job_patterns if pattern.search(text))
-        # Need at least 1 match to be considered job-related
-        # Also check common job-related company domains/names
+        
+        # Stricter: need stronger job signal
         job_companies = ["linkedin", "indeed", "glassdoor", "monster", "ziprecruiter", 
-                         "flexjobs", "jobs", "recruiter", "hiring", "careers"]
+                         "flexjobs", "recruiter", "hiring", "careers", "talent",
+                         "workday", "greenhouse", "lever", "smartrecruiters"]
         company_match = any(jc in from_address.lower() for jc in job_companies)
-        return matches >= 1 or company_match
+        
+        # Require stronger signals for job-related classification
+        # Either multiple keyword matches OR job company domain
+        return (matches >= 2) or (company_match and matches >= 1)
     
     def classify_email(self, subject: str, body: str, from_address: str = "") -> Tuple[str, float]:
         """

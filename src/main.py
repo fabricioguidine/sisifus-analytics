@@ -3,6 +3,8 @@
 import sys
 import argparse
 from pathlib import Path
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
 from src.config import INPUT_DIR, OUTPUT_DIR
@@ -12,7 +14,45 @@ from src.classifier import EmailClassifier
 from src.analytics import AnalyticsGenerator
 
 
-def load_emails_from_input() -> list:
+def filter_emails_by_date(emails: list, months: int = None, year: int = None) -> list:
+    """Filter emails by date criteria"""
+    if not emails:
+        return emails
+    
+    filtered = []
+    now = datetime.now()
+    
+    for email_data in emails:
+        email_date = email_data.get("date")
+        
+        # Skip if no date
+        if not email_date:
+            continue
+        
+        # Convert ISO string to datetime if needed
+        if isinstance(email_date, str):
+            try:
+                email_date = datetime.fromisoformat(email_date.replace('Z', '+00:00'))
+            except:
+                continue
+        
+        # Filter by year
+        if year is not None:
+            if email_date.year != year:
+                continue
+        
+        # Filter by months
+        if months is not None:
+            cutoff_date = now - relativedelta(months=months)
+            if email_date < cutoff_date:
+                continue
+        
+        filtered.append(email_data)
+    
+    return filtered
+
+
+def load_emails_from_input(months: int = None, year: int = None) -> list:
     """Load emails from input folder"""
     storage = EmailStorage()
     
@@ -31,6 +71,18 @@ def load_emails_from_input() -> list:
         print(f"[SUCCESS] Loaded {len(emails)} emails from {storage.storage_file}")
         if metadata:
             print(f"  Export date: {metadata.get('export_date', 'Unknown')}")
+        
+        # Apply date filtering
+        if months is not None or year is not None:
+            original_count = len(emails)
+            emails = filter_emails_by_date(emails, months=months, year=year)
+            filtered_count = len(emails)
+            print(f"[INFO] Filtered to {filtered_count} emails", end="")
+            if months:
+                print(f" (last {months} months)", end="")
+            if year:
+                print(f" (year {year})", end="")
+            print(f" from {original_count} total")
     else:
         print(f"[ERROR] Failed to load emails from {storage.storage_file}")
     
@@ -86,6 +138,18 @@ def main():
         action="store_true",
         help="Only extract emails and save to input folder, don't process"
     )
+    parser.add_argument(
+        "--months",
+        type=int,
+        default=None,
+        help="Filter emails from the last X months (e.g., --months 6 for last 6 months)"
+    )
+    parser.add_argument(
+        "--year",
+        type=int,
+        default=None,
+        help="Filter emails from a specific year (e.g., --year 2025)"
+    )
     
     args = parser.parse_args()
     
@@ -100,7 +164,7 @@ def main():
             print("ERROR: --extract-only cannot be used with --use-input")
             print("Use --extract-only to fetch and save emails, or --use-input to load saved emails.")
             sys.exit(1)
-        emails = load_emails_from_input()
+        emails = load_emails_from_input(months=args.months, year=args.year)
         if not emails:
             sys.exit(1)
     else:

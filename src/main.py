@@ -24,16 +24,15 @@ def load_emails_from_input() -> list:
         print("  This will auto-detect .mbox files in the input/ folder")
         return None
     
-    print("Loading emails from input folder...")
     emails = storage.load_emails()
     
     if emails:
         metadata = storage.get_metadata()
-        print(f"✓ Loaded {len(emails)} emails from {storage.storage_file}")
+        print(f"[SUCCESS] Loaded {len(emails)} emails from {storage.storage_file}")
         if metadata:
             print(f"  Export date: {metadata.get('export_date', 'Unknown')}")
     else:
-        print(f"✗ Failed to load emails from {storage.storage_file}")
+        print(f"[ERROR] Failed to load emails from {storage.storage_file}")
     
     return emails
 
@@ -55,7 +54,7 @@ def fetch_emails_from_server() -> list:
         print("Failed to connect to email server. Please check your credentials.")
         return None
     
-    print("✓ Connected successfully")
+    print("[SUCCESS] Connected successfully")
     print()
     
     print("Step 2: Fetching job-related emails...")
@@ -66,7 +65,7 @@ def fetch_emails_from_server() -> list:
         print("No emails found. Please check your search criteria.")
         return None
     
-    print(f"✓ Found {len(emails)} job-related emails")
+    print(f"[SUCCESS] Found {len(emails)} job-related emails")
     print()
     
     return emails
@@ -113,7 +112,7 @@ def main():
         print("Saving fetched emails to input folder...")
         storage = EmailStorage()
         storage.save_emails(emails, overwrite=False)
-        print(f"✓ Saved to {storage.storage_file}")
+        print(f"[SUCCESS] Saved to {storage.storage_file}")
         print()
         
         if args.extract_only:
@@ -129,14 +128,14 @@ def main():
         classified = classifier.classify_emails([email_data])
         classified_emails.extend(classified)
     
-    print(f"✓ Classified {len(classified_emails)} emails")
+    print(f"[SUCCESS] Classified {len(classified_emails)} emails")
     print()
     
     print("Step 4: Generating analytics...")
     analytics = AnalyticsGenerator(classified_emails)
     summary = analytics.save_analytics()
     
-    print("✓ Analytics generated")
+    print("[SUCCESS] Analytics generated")
     print()
     
     print("=" * 60)

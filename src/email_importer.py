@@ -33,7 +33,7 @@ class EmailImporter:
                 if email_data:
                     emails.append(email_data)
             
-            print(f"✓ Imported {len(emails)} emails from mbox file")
+            print(f"[SUCCESS] Imported {len(emails)} emails from mbox file")
             return emails
         except Exception as e:
             print(f"Error reading mbox file: {e}")
@@ -142,12 +142,15 @@ class EmailImporter:
         all_emails = []
         
         # Recursively look for .mbox files (handles nested Google Takeout folders)
+        print("Searching for .mbox files...")
         mbox_files = list(self.input_dir.rglob("*.mbox"))
         
         if not mbox_files:
-            print(f"No .mbox files found in {self.input_dir}")
+            print(f"[INFO] No .mbox files found in {self.input_dir}")
             print("\nTip: Extract your Google Takeout ZIP and place the .mbox file(s) in the input/ folder")
             return all_emails
+        
+        print(f"[INFO] Found {len(mbox_files)} .mbox file(s)")
         
         # Filter out any .mbox files in configuration/user settings folders
         filtered_mbox_files = []

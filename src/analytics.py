@@ -6,6 +6,7 @@ from collections import defaultdict, Counter
 from datetime import datetime
 import pandas as pd
 import plotly.graph_objects as go
+from tqdm import tqdm
 
 from src.config import ANALYTICS_JSON, ANALYTICS_CSV, SANKEY_HTML
 
@@ -27,7 +28,8 @@ class AnalyticsGenerator:
             "applications": [],
         }
         
-        for email_data in self.emails:
+        print("Calculating statistics...")
+        for email_data in tqdm(self.emails, desc="Analyzing emails", unit="email"):
             status = email_data.get("status", "no_reply")
             company = email_data.get("company", "Unknown")
             date = email_data.get("date")
@@ -325,6 +327,7 @@ class AnalyticsGenerator:
     
     def save_analytics(self):
         """Save analytics to JSON and CSV files"""
+        print("Generating summary statistics...")
         summary = self.generate_summary()
         summary["applications"] = self.stats["applications"]
         summary["company_details"] = {
@@ -336,15 +339,19 @@ class AnalyticsGenerator:
         }
         
         # Save JSON
+        print(f"Saving analytics JSON to {ANALYTICS_JSON.name}...")
         with open(ANALYTICS_JSON, 'w', encoding='utf-8') as f:
             json.dump(summary, f, indent=2, default=str, ensure_ascii=False)
         
         # Save CSV
+        print(f"Saving analytics CSV to {ANALYTICS_CSV.name}...")
         df = pd.DataFrame(self.stats["applications"])
         df.to_csv(ANALYTICS_CSV, index=False, encoding='utf-8')
         
         # Save Sankey diagram
+        print(f"Generating Sankey diagram...")
         fig = self.generate_sankey_diagram()
+        print(f"Saving Sankey diagram to {SANKEY_HTML.name}...")
         fig.write_html(str(SANKEY_HTML))
         
         return summary

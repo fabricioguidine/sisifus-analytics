@@ -87,13 +87,15 @@ class EmailStorage:
             return None
         
         try:
+            print(f"Loading emails from {self.storage_file.name}...")
             with open(self.storage_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             emails = data.get("emails", [])
             
             # Convert ISO date strings back to datetime objects
-            for email_data in emails:
+            print(f"Processing {len(emails)} emails...")
+            for email_data in tqdm(emails, desc="Loading emails", unit="email"):
                 if "date" in email_data and email_data["date"]:
                     try:
                         email_data["date"] = datetime.fromisoformat(email_data["date"])

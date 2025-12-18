@@ -46,14 +46,15 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
             sys.exit(1)
     else:
         # Auto-import from input folder
-        print("Auto-detecting email files in input folder...")
+        print("Auto-detecting .mbox files in input folder...")
+        print("(This may take a moment if you have many files)")
         emails = importer.auto_import()
     
     if not emails:
-        print("\n✗ No emails imported. Please check your files.")
+        print("\n[ERROR] No emails imported. Please check your files.")
         sys.exit(1)
     
-    print(f"\n✓ Total emails imported: {len(emails)}")
+    print(f"\n[SUCCESS] Total emails imported: {len(emails)}")
     print()
     
     # Save to emails.json
@@ -66,7 +67,7 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
     success = storage.save_emails(emails, overwrite=overwrite)
     
     if success:
-        print(f"✓ Saved {len(emails)} emails to {storage.storage_file}")
+        print(f"[SUCCESS] Saved {len(emails)} emails to {storage.storage_file}")
         print()
         print("=" * 60)
         print("Import complete!")
@@ -75,7 +76,7 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
         print("You can now run the main script to process these emails:")
         print("  python -m src.main --use-input")
     else:
-        print("✗ Failed to save emails")
+        print("[ERROR] Failed to save emails")
         sys.exit(1)
 
 

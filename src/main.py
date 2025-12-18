@@ -121,20 +121,37 @@ def main():
     
     
     print("Step 3: Classifying emails...")
+    print(f"[INFO] Classifying {len(emails)} emails...")
     classifier = EmailClassifier()
     
     classified_emails = []
     error_count = 0
+    
+    # Batch process for better performance (1000 emails at a time)
+    BATCH_SIZE = 1000
+    total_batches = (len(emails) + BATCH_SIZE - 1) // BATCH_SIZE
+    
+    print(f"[INFO] Processing in batches of {BATCH_SIZE} emails ({total_batches} batches)")
+    
     try:
-        for email_data in tqdm(emails, desc="Classifying", unit="email"):
+        for batch_idx in tqdm(range(0, len(emails), BATCH_SIZE), desc="Classifying batches", total=total_batches, unit="batch"):
+            batch = emails[batch_idx:batch_idx + BATCH_SIZE]
             try:
-                classified = classifier.classify_emails([email_data])
+                classified = classifier.classify_emails(batch)
                 classified_emails.extend(classified)
             except Exception as e:
-                error_count += 1
-                if error_count <= 5:
-                    print(f"\n[WARNING] Error classifying email: {str(e)[:100]}")
-                continue
+                # If batch fails, process individually
+                if error_count == 0:
+                    print(f"\n[WARNING] Batch processing failed, processing individually: {str(e)[:100]}")
+                for email_data in batch:
+                    try:
+                        classified = classifier.classify_emails([email_data])
+                        classified_emails.extend(classified)
+                    except Exception as inner_e:
+                        error_count += 1
+                        if error_count <= 5:
+                            print(f"\n[WARNING] Error classifying email: {str(inner_e)[:100]}")
+                        continue
     except KeyboardInterrupt:
         print(f"\n[INFO] Classification interrupted by user")
         print(f"[INFO] Successfully classified {len(classified_emails)} emails before interruption")

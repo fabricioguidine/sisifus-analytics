@@ -61,8 +61,13 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
     print(f"Saving to {storage.storage_file}...")
     overwrite = not storage.file_exists()
     if storage.file_exists():
-        response = input(f"File {storage.storage_file} exists. Overwrite? (y/n): ").lower()
-        overwrite = response == 'y'
+        try:
+            response = input(f"File {storage.storage_file} exists. Overwrite? (y/n): ").lower()
+            overwrite = response == 'y'
+        except (EOFError, KeyboardInterrupt):
+            # Non-interactive mode or interrupted - default to overwrite
+            print("[INFO] Non-interactive mode: overwriting existing file")
+            overwrite = True
     
     success = storage.save_emails(emails, overwrite=overwrite)
     

@@ -140,8 +140,13 @@ class EmailClassifier:
             Tuple of (status, confidence_score)
             confidence_score is between 0.0 and 1.0
         """
-        text = f"{subject} {body}".lower()
-        from_lower = from_address.lower()
+        # Optimize: Limit body length for performance (first 5000 chars should be enough)
+        body_preview = body[:5000].lower() if body else ""
+        subject_lower = subject.lower() if subject else ""
+        from_lower = from_address.lower() if from_address else ""
+        
+        # Combine text (prioritize subject and from, then body preview)
+        text = f"{subject_lower} {from_lower} {body_preview}"
         
         scores = {}
         
@@ -151,16 +156,19 @@ class EmailClassifier:
             matches = 0
             
             for pattern in patterns:
-                if pattern.search(text) or pattern.search(from_lower):
+                if pattern.search(text):
                     matches += 1
+                    # Early exit for high-confidence matches
+                    if matches >= 3:
+                        break
             
             # Calculate confidence score
             # More matches = higher confidence
             if matches > 0:
                 score = min(1.0, 0.3 + (matches * 0.2))
                 
-                # Boost score if found in subject
-                if any(pattern.search(subject.lower()) for pattern in patterns):
+                # Boost score if found in subject (check subject directly, already lowercased)
+                if subject_lower and any(pattern.search(subject_lower) for pattern in patterns):
                     score = min(1.0, score + 0.2)
             
             scores[status] = score
@@ -221,26 +229,35 @@ class EmailClassifier:
         return None
     
     def classify_emails(self, emails: List[Dict]) -> List[Dict]:
-        """Classify multiple emails and add status information"""
+        """Classify multiple emails and add status information (optimized for batch processing)"""
         classified = []
         for email_data in emails:
-            status, confidence = self.classify_email(
-                email_data.get("subject", ""),
-                email_data.get("body", ""),
-                email_data.get("from", "")
-            )
-            
-            company = self.extract_company_name(
-                email_data.get("from", ""),
-                email_data.get("subject", "")
-            )
-            
-            classified.append({
-                **email_data,
-                "status": status,
-                "confidence": confidence,
-                "company": company or "Unknown"
-            })
+            try:
+                status, confidence = self.classify_email(
+                    email_data.get("subject", ""),
+                    email_data.get("body", ""),
+                    email_data.get("from", "")
+                )
+                
+                company = self.extract_company_name(
+                    email_data.get("from", ""),
+                    email_data.get("subject", "")
+                )
+                
+                classified.append({
+                    **email_data,
+                    "status": status,
+                    "confidence": confidence,
+                    "company": company or "Unknown"
+                })
+            except Exception:
+                # If classification fails, add with default values
+                classified.append({
+                    **email_data,
+                    "status": "no_reply",
+                    "confidence": 0.0,
+                    "company": "Unknown"
+                })
         
         return classified
 

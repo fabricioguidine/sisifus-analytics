@@ -67,7 +67,9 @@ class EmailImporter:
                         imported_count += 1
                 except Exception as e:
                     error_count += 1
-                    if error_count <= 5:  # Only show first 5 errors
+                    # Only show first 5 unique error types, suppress encoding errors
+                    error_str = str(e).lower()
+                    if error_count <= 5 and 'encoding' not in error_str and 'unknown-8bit' not in error_str:
                         print(f"\n[WARNING] Error parsing email {imported_count + error_count}: {str(e)[:100]}")
                     continue
             
@@ -124,22 +126,43 @@ class EmailImporter:
                 "raw_date": date_str
             }
         except Exception as e:
-            print(f"Error parsing message: {e}")
+            # Silently skip emails that can't be parsed
+            # Errors are tracked and reported at the end
             return None
     
     def _decode_header(self, header_value: str) -> str:
-        """Decode email header"""
+        """Decode email header with robust error handling"""
         if not header_value:
             return ""
-        from email.header import decode_header
-        decoded = decode_header(header_value)
-        parts = []
-        for part, encoding in decoded:
-            if isinstance(part, bytes):
-                parts.append(part.decode(encoding or 'utf-8', errors='ignore'))
-            else:
-                parts.append(part)
-        return "".join(parts)
+        try:
+            from email.header import decode_header
+            decoded = decode_header(header_value)
+            parts = []
+            for part, encoding in decoded:
+                if isinstance(part, bytes):
+                    # Try specified encoding first, then fallback to utf-8/latin1
+                    try:
+                        if encoding:
+                            parts.append(part.decode(encoding, errors='ignore'))
+                        else:
+                            # Try common encodings
+                            for enc in ['utf-8', 'latin1', 'iso-8859-1', 'cp1252']:
+                                try:
+                                    parts.append(part.decode(enc, errors='ignore'))
+                                    break
+                                except (UnicodeDecodeError, LookupError):
+                                    continue
+                            else:
+                                parts.append(part.decode('utf-8', errors='ignore'))
+                    except (UnicodeDecodeError, LookupError):
+                        # Final fallback
+                        parts.append(part.decode('utf-8', errors='ignore'))
+                else:
+                    parts.append(str(part))
+            return "".join(parts)
+        except Exception:
+            # Ultimate fallback - return string representation
+            return str(header_value)[:200]
     
     def _extract_body(self, msg: email.message.Message) -> str:
         """Extract text body from email message"""

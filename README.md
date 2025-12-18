@@ -241,6 +241,31 @@ Performance Graph (Emails/Second):
 
 **Note**: Large datasets (200K+ emails) may require 2-4 GB RAM.
 
+## 💾 Storage Requirements
+
+### Disk Space Needed
+
+| Emails | Minimum Space | Recommended Space |
+|--------|--------------|-------------------|
+| 1,000 | ~10 MB | ~50 MB |
+| 10,000 | ~100 MB | ~500 MB |
+| 50,000 | ~500 MB | ~2 GB |
+| 100,000 | ~1 GB | ~4 GB |
+| 146,000+ | ~1.5 GB | ~6 GB |
+
+**Space breakdown:**
+- Google Takeout ZIP: ~2-3x final size (compressed)
+- Extracted .mbox file: Base size
+- `emails.json`: ~1-3x .mbox size (includes metadata)
+- Output files: ~10-20% of `emails.json` size
+
+### Tips for Large Datasets
+
+- ✅ Use SSD storage for faster processing
+- ✅ Ensure 4+ GB free RAM for 100K+ emails
+- ✅ Close other applications during processing
+- ✅ Process during off-hours for large imports
+
 ## 🧠 Classification Logic
 
 The application uses keyword-based pattern matching to classify emails into the following statuses:

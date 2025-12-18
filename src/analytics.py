@@ -348,10 +348,20 @@ class AnalyticsGenerator:
             colors.append(color_map["no_reply"])
         
         # Interview stages with flows - only connect consecutive stages
+        # If a higher stage exists, assume all previous stages were reached
         interview_stage_indices = {}
-        sorted_stages = sorted(set(list(flow_counts["interview_reached"].keys()) + 
-                                   list(flow_counts["rejected_from_interview"].keys()) +
-                                   list(flow_counts["withdrew_from_interview"].keys())))
+        existing_stages = sorted(set(list(flow_counts["interview_reached"].keys()) + 
+                                    list(flow_counts["rejected_from_interview"].keys()) +
+                                    list(flow_counts["withdrew_from_interview"].keys())))
+        
+        # Fill in missing intermediate stages
+        # If Interview 5 exists but Interview 4 doesn't, add Interview 4 with count 0
+        sorted_stages = []
+        if existing_stages:
+            max_stage = max(existing_stages)
+            for i in range(1, max_stage + 1):
+                if i in existing_stages or i < max_stage:
+                    sorted_stages.append(i)
         
         last_stage_idx = total_idx
         last_stage_num = 0  # Track the actual stage number
@@ -367,11 +377,24 @@ class AnalyticsGenerator:
             withdrew_after = flow_counts["withdrew_from_interview"].get(stage_num, 0)
             total_at_stage = reached + rejected_after + withdrew_after
             
+            # If this is a missing intermediate stage (inferred from higher stages),
+            # use the count from the next stage that has data
+            if total_at_stage == 0 and stage_num < max(existing_stages) if existing_stages else 0:
+                # This is an inferred stage - estimate count from next stage
+                # Use the minimum of stages after this one as estimate
+                next_stages = [s for s in existing_stages if s > stage_num]
+                if next_stages:
+                    # Use count from next existing stage as estimate for missing stage
+                    next_stage = min(next_stages)
+                    estimated_reached = flow_counts["interview_reached"].get(next_stage, 0)
+                    estimated_rejected = flow_counts["rejected_from_interview"].get(next_stage, 0)
+                    estimated_withdrew = flow_counts["withdrew_from_interview"].get(next_stage, 0)
+                    total_at_stage = estimated_reached + estimated_rejected + estimated_withdrew
+            
             labels[stage_idx] = f"{stage_label} ({total_at_stage})"
             interview_stage_indices[stage_num] = stage_idx
             
-            # Only connect from previous consecutive stage
-            # If there's a gap (e.g., going from 3 to 5), connect from the last consecutive stage
+            # Only connect from previous consecutive stage (now all stages are consecutive)
             if last_stage_num > 0 and stage_num == last_stage_num + 1:
                 # Consecutive stage - connect from previous
                 source_indices.append(last_stage_idx)
@@ -385,10 +408,7 @@ class AnalyticsGenerator:
                 values.append(total_at_stage)
                 colors.append(color_map["interview"])
             else:
-                # Gap detected (e.g., 3 -> 5) - don't connect directly
-                # Instead, connect from total or the last stage, but this shouldn't happen
-                # in normal flow. For now, we'll still connect but log it.
-                # Actually, if there's a gap, we should connect from total as a new path
+                # This shouldn't happen now, but handle it gracefully
                 source_indices.append(total_idx)
                 target_indices.append(stage_idx)
                 values.append(total_at_stage)

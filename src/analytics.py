@@ -323,14 +323,18 @@ class AnalyticsGenerator:
             values.append(recruiter_count)
             colors.append(color_map["recruiter"])
         
-        # Direct outcomes from total (no interview)
-        if flow_counts["rejected_direct"] > 0:
-            rejected_direct_idx = get_or_add_label("Rejected (No Interview)")
-            labels[rejected_direct_idx] = f"Rejected ({flow_counts['rejected_direct']})"
-            source_indices.append(total_idx)
-            target_indices.append(rejected_direct_idx)
-            values.append(flow_counts["rejected_direct"])
-            colors.append(color_map["rejected"])
+        # Create single Rejected node (will be populated later if needed)
+        total_rejected = flow_counts["rejected_direct"] + sum(flow_counts["rejected_from_interview"].values())
+        rejected_idx = None
+        if total_rejected > 0:
+            rejected_idx = get_or_add_label("Rejected")
+            labels[rejected_idx] = f"Rejected ({total_rejected})"
+            if flow_counts["rejected_direct"] > 0:
+                # Direct rejected (no interview)
+                source_indices.append(total_idx)
+                target_indices.append(rejected_idx)
+                values.append(flow_counts["rejected_direct"])
+                colors.append(color_map["rejected"])
         
         # Create single Withdrew node (will be populated later if needed)
         total_withdrew = flow_counts["withdrew_direct"] + sum(flow_counts["withdrew_from_interview"].values())
@@ -427,10 +431,12 @@ class AnalyticsGenerator:
             
             # Flow to rejected (companies rejected after this interview)
             if rejected_after > 0:
-                rejected_after_idx = get_or_add_label(f"Rejected After Interview {stage_num}")
-                labels[rejected_after_idx] = f"Rejected ({rejected_after})"
+                # Use the single Rejected node (created earlier)
+                if rejected_idx is None:
+                    rejected_idx = get_or_add_label("Rejected")
+                    labels[rejected_idx] = f"Rejected ({total_rejected})"
                 source_indices.append(stage_idx)
-                target_indices.append(rejected_after_idx)
+                target_indices.append(rejected_idx)
                 values.append(rejected_after)
                 colors.append(color_map["rejected"])
             

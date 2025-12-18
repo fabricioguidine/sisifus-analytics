@@ -27,8 +27,6 @@ output/
 *.json
 *.html
 
-# Input folder - keep structure but ignore large files
-input/*.mbox
-input/**/*.mbox
-input/takeout-*/
-input/Takeout/
+# Input folder - ignore everything
+input/*
+!input/.gitkeep

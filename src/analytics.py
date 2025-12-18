@@ -357,7 +357,8 @@ class AnalyticsGenerator:
         interview_stage_indices = {}
         existing_stages = sorted(set(list(flow_counts["interview_reached"].keys()) + 
                                     list(flow_counts["rejected_from_interview"].keys()) +
-                                    list(flow_counts["withdrew_from_interview"].keys())))
+                                    list(flow_counts["withdrew_from_interview"].keys()) +
+                                    list(flow_counts["ghosted_from_interview"].keys())))
         
         # Fill in missing intermediate stages
         # If Interview 5 exists but Interview 4 doesn't, add Interview 4 with count 0

@@ -259,12 +259,13 @@ class AnalyticsGenerator:
                 else:
                     flow_counts["rejected_direct"] += 1
             elif highest > 0:
-                # Reached interview but no clear outcome (likely rejected or no reply)
-                if highest not in flow_counts["interview_reached"]:
-                    flow_counts["interview_reached"][highest] = 0
-                flow_counts["interview_reached"][highest] += 1
+                # Reached interview but no clear outcome - ghosted after interview
+                if highest not in flow_counts["ghosted_from_interview"]:
+                    flow_counts["ghosted_from_interview"][highest] = 0
+                flow_counts["ghosted_from_interview"][highest] += 1
             else:
-                flow_counts["no_reply"] += 1
+                # No interview, no clear outcome - ghosted directly
+                flow_counts["ghosted_direct"] += 1
         
         # Build Sankey diagram
         labels = []
@@ -393,10 +394,10 @@ class AnalyticsGenerator:
                 if next_stages:
                     # Use count from next existing stage as estimate for missing stage
                     next_stage = min(next_stages)
-                    estimated_reached = flow_counts["interview_reached"].get(next_stage, 0)
                     estimated_rejected = flow_counts["rejected_from_interview"].get(next_stage, 0)
                     estimated_withdrew = flow_counts["withdrew_from_interview"].get(next_stage, 0)
-                    total_at_stage = estimated_reached + estimated_rejected + estimated_withdrew
+                    estimated_ghosted = flow_counts["ghosted_from_interview"].get(next_stage, 0)
+                    total_at_stage = estimated_rejected + estimated_withdrew + estimated_ghosted
             
             labels[stage_idx] = f"{stage_label} ({total_at_stage})"
             interview_stage_indices[stage_num] = stage_idx

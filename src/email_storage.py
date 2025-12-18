@@ -134,3 +134,4 @@ class EmailStorage:
             print(f"Error deleting storage file: {e}")
             return False
 
+

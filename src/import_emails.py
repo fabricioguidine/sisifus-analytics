@@ -10,7 +10,14 @@ from src.email_storage import EmailStorage
 
 
 def import_emails(source_path: str = None, format_type: str = None, output_file: str = "emails.json"):
-    """Import emails from exported files and save to input folder"""
+    """
+    Import emails from .mbox file and save to input folder
+    
+    Args:
+        source_path: Path to .mbox file (optional, auto-detects if not provided)
+        format_type: Not used (kept for compatibility)
+        output_file: Output filename (default: emails.json)
+    """
     print("=" * 60)
     print("Email Import Tool")
     print("=" * 60)
@@ -28,27 +35,15 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
             print(f"Error: Path not found: {source_path}")
             sys.exit(1)
         
-        if format_type == "mbox" or (source.suffix == ".mbox"):
+        if source.suffix == ".mbox":
             print(f"Importing from mbox file: {source.name}")
             emails = importer.import_from_mbox(source)
-        elif format_type == "eml" or source.is_dir():
-            print(f"Importing from directory: {source.name}")
-            emails = importer.import_from_eml_files(source)
-        elif format_type == "json" or (source.suffix == ".json"):
-            print(f"Importing from JSON file: {source.name}")
-            emails = importer.import_from_json(source)
+        elif source.is_dir():
+            print("Error: Directories are not supported. Please specify the .mbox file path.")
+            sys.exit(1)
         else:
-            print(f"Unknown format. Trying auto-detect...")
-            if source.is_file():
-                if source.suffix == ".mbox":
-                    emails = importer.import_from_mbox(source)
-                elif source.suffix == ".json":
-                    emails = importer.import_from_json(source)
-                else:
-                    print("Error: Unsupported file format")
-                    sys.exit(1)
-            else:
-                emails = importer.import_from_eml_files(source)
+            print(f"Error: Unsupported file format. Only .mbox files are supported.")
+            sys.exit(1)
     else:
         # Auto-import from input folder
         print("Auto-detecting email files in input folder...")
@@ -87,18 +82,12 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
 def main():
     """Main function with command-line arguments"""
     parser = argparse.ArgumentParser(
-        description="Import emails from exported files (Google Takeout, mbox, eml, JSON)"
+        description="Import emails from Google Takeout .mbox files"
     )
     parser.add_argument(
         "source",
         nargs="?",
-        help="Path to mbox file, directory of .eml files, or JSON file. "
-             "If not provided, auto-detects in input folder."
-    )
-    parser.add_argument(
-        "--format",
-        choices=["mbox", "eml", "json"],
-        help="File format (auto-detected if not specified)"
+        help="Path to .mbox file. If not provided, auto-detects .mbox files in input folder."
     )
     parser.add_argument(
         "--output",
@@ -110,11 +99,12 @@ def main():
     
     import_emails(
         source_path=args.source,
-        format_type=args.format,
+        format_type=None,
         output_file=args.output
     )
 
 
 if __name__ == "__main__":
     main()
+
 

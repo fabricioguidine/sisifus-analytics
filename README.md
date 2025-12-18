@@ -47,7 +47,7 @@ Export your emails from Google Takeout and import them into the application:
 3. Click **"Deselect all"** to start fresh
 4. Scroll down and check **"Mail"**
 5. Click **"Multiple formats"** next to Mail
-   - Select **"mbox"** format (recommended)
+   - Select **"mbox"** format
 6. Click **"Next step"**
 7. Choose:
    - **Delivery method**: "Add to Drive" or "Send download link via email"
@@ -57,18 +57,31 @@ Export your emails from Google Takeout and import them into the application:
 9. Wait for Google to prepare your export (may take hours for large accounts)
 10. Download the ZIP file when ready
 11. Extract the ZIP file
-12. Look for the `Mail` folder inside - it contains `.mbox` files
+12. Navigate to the extracted folder structure:
+    - `takeout-YYYYMMDDTHHMMSSZ-XXX-001/Takeout/E-mail/`
+    - You'll find `.mbox` files here (e.g., `Todos os e-mails, incluindo Spam e Lixeira-002.mbox`)
+    - You can ignore the `Configurações do usuário` folder (it contains settings, not emails)
 
 ### Import the exported emails:
 
 ```bash
-# Option A: Place .mbox file in input folder, then auto-import
-# Copy your .mbox file to the input/ folder, then:
+# Option A: Place .mbox file(s) in input folder, then auto-import
+# Copy your .mbox file(s) to the input/ folder, then:
 python -m src.import_emails
 
 # Option B: Import directly from a specific file
-python -m src.import_emails path/to/your/Mail.mbox
+python -m src.import_emails "input/Todos os e-mails, incluindo Spam e Lixeira-002.mbox"
+
+# Option C: Import from Google Takeout folder structure (auto-detects .mbox files)
+# If you extracted the entire Takeout folder in input/, it will find .mbox files automatically
+python -m src.import_emails
 ```
+
+**Important Notes:**
+- The tool automatically searches for `.mbox` files in the `input/` folder (including subdirectories)
+- Configuration files (JSON files in `Configurações do usuário` folder) are automatically ignored
+- You can have multiple `.mbox` files - all will be imported
+- Only `.mbox` files are supported (Google Takeout format)
 
 **Supported formats:**
 - ✅ `.mbox` files (Google Takeout format)
@@ -242,8 +255,9 @@ The application tracks:
 
 - Ensure your `.mbox` file is not corrupted
 - Check that the file path is correct
-- Try importing a smaller subset of emails to test
 - Verify the file format is `.mbox` (Google Takeout format)
+- The tool automatically ignores configuration folders (`Configurações do usuário`)
+- Make sure the `.mbox` file is in the `input/` folder or a subdirectory
 
 ### Low Accuracy
 

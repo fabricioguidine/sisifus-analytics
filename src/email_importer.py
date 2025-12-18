@@ -1,20 +1,16 @@
-"""Import emails from exported files (Google Takeout, mbox, eml files)"""
+"""Import emails from exported .mbox files (Google Takeout format)"""
 
-import json
 import email
-from email import message_from_file, message_from_string
 from pathlib import Path
 from typing import List, Dict, Optional
-from datetime import datetime
 from tqdm import tqdm
 import mailbox
-import os
 
 from src.config import INPUT_DIR
 
 
 class EmailImporter:
-    """Import emails from various exported formats"""
+    """Import emails from Google Takeout .mbox files"""
     
     def __init__(self, input_dir: Path = None):
         self.input_dir = input_dir or INPUT_DIR
@@ -43,66 +39,6 @@ class EmailImporter:
             print(f"Error reading mbox file: {e}")
             return emails
     
-    def import_from_eml_files(self, eml_dir: Path) -> List[Dict]:
-        """Import emails from directory of .eml files"""
-        emails = []
-        
-        if not eml_dir.exists() or not eml_dir.is_dir():
-            print(f"Error: Directory not found: {eml_dir}")
-            return emails
-        
-        eml_files = list(eml_dir.glob("*.eml"))
-        if not eml_files:
-            print(f"No .eml files found in {eml_dir}")
-            return emails
-        
-        for eml_file in tqdm(eml_files, desc=f"Importing .eml files", unit="file"):
-            try:
-                with open(eml_file, 'r', encoding='utf-8', errors='ignore') as f:
-                    msg = message_from_file(f)
-                    email_data = self._parse_message(msg)
-                    if email_data:
-                        emails.append(email_data)
-            except Exception as e:
-                print(f"Error reading {eml_file.name}: {e}")
-                continue
-        
-        print(f"✓ Imported {len(emails)} emails from .eml files")
-        return emails
-    
-    def import_from_json(self, json_path: Path) -> List[Dict]:
-        """Import emails from JSON file"""
-        if not json_path.exists():
-            print(f"Error: File not found: {json_path}")
-            return []
-        
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            # Handle different JSON structures
-            if isinstance(data, list):
-                emails = data
-            elif isinstance(data, dict) and "emails" in data:
-                emails = data["emails"]
-            else:
-                print("Error: Invalid JSON structure")
-                return []
-            
-            # Convert date strings to datetime if needed
-            for email_data in emails:
-                if "date" in email_data and email_data["date"]:
-                    if isinstance(email_data["date"], str):
-                        try:
-                            email_data["date"] = datetime.fromisoformat(email_data["date"])
-                        except (ValueError, TypeError):
-                            pass
-            
-            print(f"✓ Imported {len(emails)} emails from JSON file")
-            return emails
-        except Exception as e:
-            print(f"Error reading JSON file: {e}")
-            return []
     
     def _parse_message(self, msg: email.message.Message) -> Optional[Dict]:
         """Parse email message object into dictionary"""
@@ -200,39 +136,33 @@ class EmailImporter:
     
     def auto_import(self) -> List[Dict]:
         """
-        Automatically detect and import emails from input folder
-        Looks for: .mbox files, .eml files, emails.json
+        Automatically detect and import .mbox files from input folder
+        Recursively searches for .mbox files (handles Google Takeout folder structure)
         """
         all_emails = []
         
-        # Look for mbox files
-        mbox_files = list(self.input_dir.glob("*.mbox"))
+        # Recursively look for .mbox files (handles nested Google Takeout folders)
+        mbox_files = list(self.input_dir.rglob("*.mbox"))
+        
+        if not mbox_files:
+            print(f"No .mbox files found in {self.input_dir}")
+            print("\nTip: Extract your Google Takeout ZIP and place the .mbox file(s) in the input/ folder")
+            return all_emails
+        
+        # Filter out any .mbox files in configuration/user settings folders
+        filtered_mbox_files = []
         for mbox_file in mbox_files:
-            print(f"\nFound mbox file: {mbox_file.name}")
+            # Skip files in configuration/settings folders
+            path_str = str(mbox_file).lower()
+            if 'configurações' in path_str or 'settings' in path_str or 'user' in path_str:
+                continue
+            filtered_mbox_files.append(mbox_file)
+        
+        for mbox_file in filtered_mbox_files:
+            print(f"\nFound mbox file: {mbox_file.relative_to(self.input_dir)}")
             emails = self.import_from_mbox(mbox_file)
             all_emails.extend(emails)
         
-        # Look for eml files (in a subdirectory or root)
-        eml_dirs = [self.input_dir]
-        # Also check for common Google Takeout structure
-        for subdir in self.input_dir.iterdir():
-            if subdir.is_dir() and subdir.name.lower() in ['mail', 'emails', 'messages']:
-                eml_dirs.append(subdir)
-        
-        for eml_dir in eml_dirs:
-            eml_files = list(eml_dir.glob("*.eml"))
-            if eml_files:
-                print(f"\nFound {len(eml_files)} .eml files in {eml_dir.name}")
-                emails = self.import_from_eml_files(eml_dir)
-                all_emails.extend(emails)
-        
-        # Look for JSON file (but not emails.json which is our output format)
-        json_files = [f for f in self.input_dir.glob("*.json") 
-                     if f.name != "emails.json"]
-        for json_file in json_files:
-            print(f"\nFound JSON file: {json_file.name}")
-            emails = self.import_from_json(json_file)
-            all_emails.extend(emails)
-        
         return all_emails
+
 

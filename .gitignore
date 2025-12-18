@@ -27,6 +27,8 @@ output/
 *.json
 *.html
 
-# Input folder (optional - uncomment if you don't want to track input files)
-# input/
-
+# Input folder - keep structure but ignore large files
+input/*.mbox
+input/**/*.mbox
+input/takeout-*/
+input/Takeout/

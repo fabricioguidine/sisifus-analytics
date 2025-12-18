@@ -19,10 +19,9 @@ def load_emails_from_input() -> list:
     if not storage.file_exists():
         print(f"✗ No emails found in {storage.storage_file}")
         print()
-        print("  Options to get emails:")
-        print("  1. Extract from email server: python -m src.extract_emails")
-        print("  2. Import from exported files: python -m src.import_emails")
-        print("     (Supports Google Takeout .mbox files, .eml files, or JSON)")
+        print("  To import emails, run:")
+        print("    python -m src.import_emails")
+        print("  This will auto-detect .mbox files in the input/ folder")
         return None
     
     print("Loading emails from input folder...")

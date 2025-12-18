@@ -124,6 +124,7 @@ class EmailClassifier:
             r"we.*will.*not.*move.*forward",
             r"we.*not.*move.*forward",
             r"we.*decided.*pursue.*other",
+            r"decided.*pursue.*other.*candidates",  # Sometimes without "we"
             r"decided.*not.*move.*forward",  # Sometimes without "we"
             r"other.*candidates",
             r"better.*fit.*another",

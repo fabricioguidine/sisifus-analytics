@@ -268,20 +268,54 @@ Performance Graph (Emails/Second):
 
 ## 🧠 Classification Logic
 
-The application uses keyword-based pattern matching to classify emails into the following statuses:
+The application uses **keyword-based pattern matching** (no LLM required) to classify emails into job application statuses. The classification process has two main stages:
 
-- **applied**: Initial application submitted
-- **confirmation**: Application confirmation received
-- **interview_1, interview_2, interview_3, ...**: Interview stages
-- **offer**: Job offer received
-- **accepted**: Offer accepted
-- **rejected**: Application rejected
-- **withdrew**: Application withdrawn
-- **no_reply**: No clear status (low confidence)
+### Stage 1: Job-Related Filtering
+
+Before classification, emails are filtered to identify job-related content:
+
+- **Job-related emails**: Contain keywords like "job", "application", "interview", "recruiter", "hiring", "position", "candidate", "opportunity", "career", etc.
+- **Non-job emails**: Newsletters, promotions, personal emails, spam, etc. are marked as `not_job_related` and excluded from job application statistics
+- **Job-related domains**: Emails from known job platforms (LinkedIn, Indeed, Glassdoor, etc.) are automatically considered job-related
+
+### Stage 2: Status Classification
+
+Job-related emails are classified into the following statuses using regex pattern matching:
+
+| Status | Description | Examples |
+|--------|-------------|----------|
+| **applied** | Initial application submitted | "Thank you for your application", "Application received", "Job opportunity" |
+| **confirmation** | Application confirmation received | "We have received your application", "Application successfully received" |
+| **interview_1, interview_2, ...** | Interview stages (numbered) | "First interview", "Phone screen", "Technical interview", "Final round" |
+| **offer** | Job offer received | "We are pleased to offer", "Job offer", "Congratulations, we'd like to offer" |
+| **accepted** | Offer accepted | "I accept", "I'm excited to accept", "Accepting the offer" |
+| **rejected** | Application rejected by company | "We regret to inform", "Not selected", "Decided to pursue other candidates" |
+| **withdrew** | Application withdrawn by user | "Withdraw application", "No longer interested", "Declined interview" |
+| **no_reply** | No clear status (low confidence) | Job-related emails that don't match any specific status pattern |
+| **not_job_related** | Non-job emails (excluded from stats) | Newsletters, promotions, personal emails |
+
+### Classification Process
+
+1. **Email Preprocessing**: Extract subject and body text (HTML converted to plain text)
+2. **Job Filtering**: Check if email contains job-related keywords or is from a job platform
+3. **Pattern Matching**: Search for status-specific keywords in subject and body (first 5000 chars)
+4. **Confidence Scoring**: Calculate confidence based on number of matching patterns
+5. **Priority Rules**: Higher-priority statuses (e.g., "rejected", "offer") override lower-priority ones
+6. **Company Extraction**: Extract company name from email domain or sender name
 
 ### Accuracy
 
-The application calculates accuracy as the percentage of emails classified with confidence > 0.5. Typical accuracy ranges from **70-90%** depending on email quality and wording.
+The application calculates accuracy as the percentage of emails classified with confidence > 0.5. Typical accuracy ranges from **70-90%** depending on:
+
+- Email wording and clarity
+- Language (English vs. Portuguese patterns supported)
+- Email quality and formatting
+- Presence of standard job application terminology
+
+**Note**: The keyword-based approach is fast and privacy-preserving, but may misclassify:
+- Unusual email wording or non-standard formats
+- Emails in languages not explicitly supported
+- Ambiguous statuses that require context
 
 ## 📁 Project Structure
 
@@ -338,23 +372,90 @@ The application follows a clean, modular architecture:
 
 ## 📋 Status Categories Tracked
 
-The application tracks:
+The application tracks the following job application statuses:
 
-1. **Applications**: Initial applications sent
-2. **Confirmations**: Receipt confirmations
-3. **Interview Stages**: 1st, 2nd, 3rd, 4th, 5th interviews
-4. **Offers**: Job offers received
-5. **Accepted**: Offers accepted
-6. **Rejected**: Applications rejected
-7. **Withdrew**: Applications withdrawn
-8. **No Reply**: No response/unknown status
+### Application Flow Statuses
+
+1. **Applied** (`applied`): Initial applications sent by you or job opportunities received
+2. **Confirmation** (`confirmation`): Receipt confirmations from companies
+3. **Interview Stages** (`interview_1`, `interview_2`, `interview_3`, etc.): Interview rounds (numbered sequentially)
+4. **Offer** (`offer`): Job offers received from companies
+5. **Accepted** (`accepted`): Offers you accepted
+
+### Outcome Statuses
+
+6. **Rejected** (`rejected`): Applications rejected by the company (consolidated in Sankey diagram)
+7. **Withdrew** (`withdrew`): Applications you withdrew or declined (consolidated in Sankey diagram)
+8. **Ghosted** (`no_reply` + `no_progress_after_interview_X`): No response received, consolidated into single "Ghosted" node in Sankey diagram
+
+### Excluded Statuses
+
+9. **Not Job Related** (`not_job_related`): Non-job emails excluded from application statistics
+
+### Sankey Diagram Consolidation
+
+In the Sankey diagram visualization, similar statuses are consolidated for clarity:
+
+- **Rejected**: All rejection types (direct and after interviews) → Single "Rejected" node
+- **Withdrew**: All withdrawal types (direct and after interviews) → Single "Withdrew" node  
+- **Ghosted**: "No Reply" and "No Progress After Interview X" → Single "Ghosted" node
 
 ## ⚠️ Limitations
 
-- Classification is based on keyword matching, so unusual email wording might not be classified correctly
-- Company name extraction relies on email domains, which may not always be accurate
-- The Sankey diagram flow assumes a linear progression (applications → interviews → offers)
-- Very large datasets (500K+ emails) may require additional memory and processing time
+### Classification Limitations
+
+1. **Keyword-Based Approach**
+   - Classification relies on pattern matching, so unusual email wording may be misclassified
+   - Emails with non-standard formats or creative language may not match patterns
+   - Context-dependent emails (e.g., sarcasm, informal language) may be misclassified
+   - **Accuracy**: Typically 70-90% depending on email quality and wording
+
+2. **Language Support**
+   - Primary support for **English** and **Portuguese** keywords
+   - Other languages may have lower accuracy
+   - Mixed-language emails may not be classified correctly
+
+3. **Status Ambiguity**
+   - Some emails may match multiple status patterns (priority rules apply)
+   - Low-confidence emails are classified as `no_reply`
+   - Edge cases (e.g., "we decided not to proceed" from user vs. company) may be misclassified
+
+4. **Company Name Extraction**
+   - Relies on email domains (e.g., `noreply@company.com` → "company")
+   - May not always extract the correct company name
+   - Generic domains (gmail.com, outlook.com) may result in "Unknown" company
+   - Third-party recruiters may show recruiter company instead of actual employer
+
+5. **Interview Stage Detection**
+   - Stages are detected from email content (e.g., "first interview", "final round")
+   - If stage numbers aren't explicit, may not be numbered correctly
+   - Missing intermediate stages are inferred in the Sankey diagram
+
+### Data Limitations
+
+6. **Email Import**
+   - Only supports `.mbox` format (Google Takeout)
+   - Corrupted or malformed emails may be skipped
+   - Very large files (>500MB) may take significant time to import
+
+7. **Sankey Diagram Assumptions**
+   - Assumes linear progression: applications → interviews → offers
+   - Non-linear flows (e.g., direct offers without interviews) are handled but may look unusual
+   - Missing intermediate interview stages are estimated from higher stages
+
+8. **Performance**
+   - Very large datasets (500K+ emails) may require:
+     - 4-8 GB RAM
+     - 30+ minutes processing time
+     - Significant disk space (2-4 GB)
+   - Date filtering is recommended for large datasets
+
+### Known Edge Cases
+
+- **False Positives**: Non-job emails may be classified as job-related if they contain job keywords
+- **False Negatives**: Job emails with unusual wording may be marked as `not_job_related`
+- **Rejection vs. Withdrawal**: May misclassify user declines as company rejections (or vice versa) if language is ambiguous
+- **Multiple Companies**: Emails from third-party recruiters may show recruiter company instead of actual employer
 
 ## 🔧 Troubleshooting
 

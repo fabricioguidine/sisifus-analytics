@@ -323,44 +323,46 @@ class AnalyticsGenerator:
             values.append(recruiter_count)
             colors.append(color_map["recruiter"])
         
-        # Create single Rejected node (will be populated later if needed)
+        # Calculate totals for final status nodes
         total_rejected = flow_counts["rejected_direct"] + sum(flow_counts["rejected_from_interview"].values())
+        total_withdrew = flow_counts["withdrew_direct"] + sum(flow_counts["withdrew_from_interview"].values())
+        total_ghosted = flow_counts["ghosted_direct"] + sum(flow_counts["ghosted_from_interview"].values())
+        
+        # Create single status nodes ONCE (no duplicates)
         rejected_idx = None
+        withdrew_idx = None
+        ghosted_idx = None
+        
         if total_rejected > 0:
             rejected_idx = get_or_add_label("Rejected")
             labels[rejected_idx] = f"Rejected ({total_rejected})"
-            if flow_counts["rejected_direct"] > 0:
-                # Direct rejected (no interview)
-                source_indices.append(total_idx)
-                target_indices.append(rejected_idx)
-                values.append(flow_counts["rejected_direct"])
-                colors.append(color_map["rejected"])
-        
-        # Create single Withdrew node (will be populated later if needed)
-        total_withdrew = flow_counts["withdrew_direct"] + sum(flow_counts["withdrew_from_interview"].values())
-        withdrew_idx = None
+            
         if total_withdrew > 0:
             withdrew_idx = get_or_add_label("Withdrew")
             labels[withdrew_idx] = f"Withdrew ({total_withdrew})"
-            if flow_counts["withdrew_direct"] > 0:
-                # Direct withdrew (no interview)
-                source_indices.append(total_idx)
-                target_indices.append(withdrew_idx)
-                values.append(flow_counts["withdrew_direct"])
-                colors.append(color_map["withdrew"])
-        
-        # Create single Ghosted node (will be populated later if needed)
-        total_ghosted = flow_counts["ghosted_direct"] + sum(flow_counts["ghosted_from_interview"].values())
-        ghosted_idx = None
+            
         if total_ghosted > 0:
             ghosted_idx = get_or_add_label("Ghosted")
             labels[ghosted_idx] = f"Ghosted ({total_ghosted})"
-            if flow_counts["ghosted_direct"] > 0:
-                # Direct ghosted (no interview)
-                source_indices.append(total_idx)
-                target_indices.append(ghosted_idx)
-                values.append(flow_counts["ghosted_direct"])
-                colors.append(color_map["no_reply"])
+        
+        # Connect direct outcomes (no interview)
+        if rejected_idx is not None and flow_counts["rejected_direct"] > 0:
+            source_indices.append(total_idx)
+            target_indices.append(rejected_idx)
+            values.append(flow_counts["rejected_direct"])
+            colors.append(color_map["rejected"])
+        
+        if withdrew_idx is not None and flow_counts["withdrew_direct"] > 0:
+            source_indices.append(total_idx)
+            target_indices.append(withdrew_idx)
+            values.append(flow_counts["withdrew_direct"])
+            colors.append(color_map["withdrew"])
+        
+        if ghosted_idx is not None and flow_counts["ghosted_direct"] > 0:
+            source_indices.append(total_idx)
+            target_indices.append(ghosted_idx)
+            values.append(flow_counts["ghosted_direct"])
+            colors.append(color_map["no_reply"])
         
         # Interview stages with flows - only connect consecutive stages
         # If a higher stage exists, assume all previous stages were reached
@@ -430,22 +432,14 @@ class AnalyticsGenerator:
                 colors.append(color_map["interview"])
             
             # Flow to rejected (companies rejected after this interview)
-            if rejected_after > 0:
-                # Use the single Rejected node (created earlier)
-                if rejected_idx is None:
-                    rejected_idx = get_or_add_label("Rejected")
-                    labels[rejected_idx] = f"Rejected ({total_rejected})"
+            if rejected_after > 0 and rejected_idx is not None:
                 source_indices.append(stage_idx)
                 target_indices.append(rejected_idx)
                 values.append(rejected_after)
                 colors.append(color_map["rejected"])
             
             # Flow to withdrew (companies that withdrew after this interview)
-            if withdrew_after > 0:
-                # Use the single Withdrew node (created earlier)
-                if withdrew_idx is None:
-                    withdrew_idx = get_or_add_label("Withdrew")
-                    labels[withdrew_idx] = f"Withdrew ({total_withdrew})"
+            if withdrew_after > 0 and withdrew_idx is not None:
                 source_indices.append(stage_idx)
                 target_indices.append(withdrew_idx)
                 values.append(withdrew_after)
@@ -453,11 +447,7 @@ class AnalyticsGenerator:
             
             # Ghosted after this interview stage
             ghosted_after = flow_counts["ghosted_from_interview"].get(stage_num, 0)
-            if ghosted_after > 0:
-                # Use the single Ghosted node (created earlier)
-                if ghosted_idx is None:
-                    ghosted_idx = get_or_add_label("Ghosted")
-                    labels[ghosted_idx] = f"Ghosted ({total_ghosted})"
+            if ghosted_after > 0 and ghosted_idx is not None:
                 source_indices.append(stage_idx)
                 target_indices.append(ghosted_idx)
                 values.append(ghosted_after)

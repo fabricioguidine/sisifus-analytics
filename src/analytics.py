@@ -339,13 +339,18 @@ class AnalyticsGenerator:
             values.append(flow_counts["withdrew_direct"])
             colors.append(color_map["withdrew"])
         
-        if flow_counts["no_reply"] > 0:
-            no_reply_idx = get_or_add_label("No Reply")
-            labels[no_reply_idx] = f"No Reply ({flow_counts['no_reply']})"
-            source_indices.append(total_idx)
-            target_indices.append(no_reply_idx)
-            values.append(flow_counts["no_reply"])
-            colors.append(color_map["no_reply"])
+        # Create single Ghosted node (will be populated later if needed)
+        total_ghosted = flow_counts["ghosted_direct"] + sum(flow_counts["ghosted_from_interview"].values())
+        ghosted_idx = None
+        if total_ghosted > 0:
+            ghosted_idx = get_or_add_label("Ghosted")
+            labels[ghosted_idx] = f"Ghosted ({total_ghosted})"
+            if flow_counts["ghosted_direct"] > 0:
+                # Direct ghosted (no interview)
+                source_indices.append(total_idx)
+                target_indices.append(ghosted_idx)
+                values.append(flow_counts["ghosted_direct"])
+                colors.append(color_map["no_reply"])
         
         # Interview stages with flows - only connect consecutive stages
         # If a higher stage exists, assume all previous stages were reached
@@ -432,15 +437,16 @@ class AnalyticsGenerator:
                 values.append(withdrew_after)
                 colors.append(color_map["withdrew"])
             
-            # If no next consecutive stage exists, check if companies didn't progress
-            next_stage = stage_num + 1
-            if next_stage not in sorted_stages and reached > 0:
-                # These companies reached this stage but didn't advance to next stage
-                no_progress_idx = get_or_add_label(f"No Progress After Interview {stage_num}")
-                labels[no_progress_idx] = f"No Progress ({reached})"
+            # Ghosted after this interview stage
+            ghosted_after = flow_counts["ghosted_from_interview"].get(stage_num, 0)
+            if ghosted_after > 0:
+                # Use the single Ghosted node (created earlier)
+                if ghosted_idx is None:
+                    ghosted_idx = get_or_add_label("Ghosted")
+                    labels[ghosted_idx] = f"Ghosted ({total_ghosted})"
                 source_indices.append(stage_idx)
-                target_indices.append(no_progress_idx)
-                values.append(reached)
+                target_indices.append(ghosted_idx)
+                values.append(ghosted_after)
                 colors.append(color_map["no_reply"])
             
             # Update tracking for next iteration

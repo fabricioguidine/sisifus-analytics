@@ -151,13 +151,61 @@ class AnalyticsGenerator:
         accuracy_percentage = (high_confidence_count / len(emails)) * 100
         return round(accuracy_percentage, 2)
     
+    def _get_company_flow(self) -> Dict[str, Dict]:
+        """Determine the flow for each company based on all their emails"""
+        company_flows = {}
+        
+        for email_data in self.emails:
+            company = email_data.get("company", "Unknown")
+            status = email_data.get("status", "no_reply")
+            
+            if company not in company_flows:
+                company_flows[company] = {
+                    "highest_interview": 0,
+                    "final_status": "no_reply",
+                    "has_offer": False,
+                    "has_accepted": False,
+                    "has_rejected": False,
+                    "has_withdrew": False,
+                }
+            
+            flow = company_flows[company]
+            
+            # Track highest interview stage
+            if status.startswith("interview_"):
+                try:
+                    stage_num = int(status.split("_")[1])
+                    flow["highest_interview"] = max(flow["highest_interview"], stage_num)
+                except:
+                    pass
+            
+            # Track final status (priority order: accepted > offer > withdrew > rejected > interview > applied)
+            if status == "accepted":
+                flow["has_accepted"] = True
+                flow["final_status"] = "accepted"
+            elif status == "offer" and flow["final_status"] != "accepted":
+                flow["has_offer"] = True
+                flow["final_status"] = "offer"
+            elif status == "withdrew" and flow["final_status"] not in ["accepted", "offer"]:
+                flow["has_withdrew"] = True
+                flow["final_status"] = "withdrew"
+            elif status == "rejected" and flow["final_status"] not in ["accepted", "offer", "withdrew"]:
+                flow["has_rejected"] = True
+                flow["final_status"] = "rejected"
+            elif status.startswith("interview_") and flow["final_status"] == "no_reply":
+                flow["final_status"] = f"interview_{flow['highest_interview']}"
+        
+        return company_flows
+    
     def generate_sankey_diagram(self) -> go.Figure:
-        """Generate Sankey diagram similar to the image"""
-        # Count applications by source (applied vs recruiter)
+        """Generate Sankey diagram with accurate company flow tracking"""
+        # Get company flows to determine actual outcomes
+        company_flows = self._get_company_flow()
+        
+        # Count applications by source
         applied_count = self.stats["by_status"].get("applied", 0)
         recruiter_count = self.stats["by_status"].get("confirmation", 0)
         
-        # Calculate total applications (exclude non-job emails)
         excluded_statuses = {"no_reply", "not_job_related"}
         
         if applied_count > 0 or recruiter_count > 0:
@@ -168,22 +216,70 @@ class AnalyticsGenerator:
                 if status not in excluded_statuses
             )
         
-        # Build flow data
+        # Count companies by their actual flow outcome
+        flow_counts = {
+            "interview_reached": {},  # interview stage -> count
+            "rejected_from_interview": {},  # interview stage -> count (rejected after this stage)
+            "rejected_direct": 0,  # rejected without interview
+            "withdrew_from_interview": {},  # interview stage -> count
+            "withdrew_direct": 0,
+            "no_reply": 0,
+            "offer": 0,
+            "accepted": 0,
+            "declined_offer": 0,
+        }
+        
+        for company, flow in company_flows.items():
+            if company == "Unknown":
+                continue  # Skip Unknown companies
+            highest = flow["highest_interview"]
+            final = flow["final_status"]
+            
+            if flow["has_accepted"]:
+                flow_counts["accepted"] += 1
+            elif flow["has_offer"]:
+                if flow["has_withdrew"] or not flow["has_accepted"]:
+                    flow_counts["declined_offer"] += 1
+                else:
+                    flow_counts["offer"] += 1
+            elif flow["has_withdrew"]:
+                if highest > 0:
+                    if highest not in flow_counts["withdrew_from_interview"]:
+                        flow_counts["withdrew_from_interview"][highest] = 0
+                    flow_counts["withdrew_from_interview"][highest] += 1
+                else:
+                    flow_counts["withdrew_direct"] += 1
+            elif flow["has_rejected"]:
+                if highest > 0:
+                    # Rejected after reaching interview stage
+                    if highest not in flow_counts["rejected_from_interview"]:
+                        flow_counts["rejected_from_interview"][highest] = 0
+                    flow_counts["rejected_from_interview"][highest] += 1
+                else:
+                    flow_counts["rejected_direct"] += 1
+            elif highest > 0:
+                # Reached interview but no clear outcome (likely rejected or no reply)
+                if highest not in flow_counts["interview_reached"]:
+                    flow_counts["interview_reached"][highest] = 0
+                flow_counts["interview_reached"][highest] += 1
+            else:
+                flow_counts["no_reply"] += 1
+        
+        # Build Sankey diagram
         labels = []
         source_indices = []
         target_indices = []
         values = []
         colors = []
         
-        # Color scheme
         color_map = {
-            "applied": "rgba(173, 216, 230, 0.8)",  # Light blue
+            "applied": "rgba(173, 216, 230, 0.8)",
             "recruiter": "rgba(173, 216, 230, 0.8)",
             "total": "rgba(173, 216, 230, 0.8)",
             "no_reply": "rgba(173, 216, 230, 0.6)",
-            "rejected": "rgba(255, 165, 0, 0.8)",  # Orange/peach
+            "rejected": "rgba(255, 165, 0, 0.8)",
             "interview": "rgba(255, 165, 0, 0.6)",
-            "offer": "rgba(144, 238, 144, 0.8)",  # Light green
+            "offer": "rgba(144, 238, 144, 0.8)",
             "accepted": "rgba(144, 238, 144, 0.8)",
             "declined": "rgba(144, 238, 144, 0.6)",
             "withdrew": "rgba(255, 165, 0, 0.6)",
@@ -213,7 +309,7 @@ class AnalyticsGenerator:
         total_idx = get_or_add_label("Total Applications")
         labels[total_idx] = f"Total Applications ({total_applications})"
         
-        # Connect sources to total (only if we have them)
+        # Connect sources to total
         if applied_count > 0:
             source_indices.append(applied_idx)
             target_indices.append(total_idx)
@@ -226,114 +322,114 @@ class AnalyticsGenerator:
             values.append(recruiter_count)
             colors.append(color_map["recruiter"])
         
-        # If no explicit sources, we need to adjust total
-        if applied_count == 0 and recruiter_count == 0:
-            # Set total to actual total
-            labels[total_idx] = f"Total Applications ({total_applications})"
-        
-        # Outcomes from total applications
-        no_reply_count = self.stats["by_status"].get("no_reply", 0)
-        rejected_total = self.stats["by_status"].get("rejected", 0)
-        
-        if no_reply_count > 0:
-            no_reply_idx = get_or_add_label("No Reply")
-            labels[no_reply_idx] = f"No Reply ({no_reply_count})"
+        # Direct outcomes from total (no interview)
+        if flow_counts["rejected_direct"] > 0:
+            rejected_direct_idx = get_or_add_label("Rejected (No Interview)")
+            labels[rejected_direct_idx] = f"Rejected ({flow_counts['rejected_direct']})"
             source_indices.append(total_idx)
-            target_indices.append(no_reply_idx)
-            values.append(no_reply_count)
-            colors.append(color_map["no_reply"])
-        
-        if rejected_total > 0:
-            rejected_idx = get_or_add_label("Rejected")
-            labels[rejected_idx] = f"Rejected ({rejected_total})"
-            source_indices.append(total_idx)
-            target_indices.append(rejected_idx)
-            values.append(rejected_total)
+            target_indices.append(rejected_direct_idx)
+            values.append(flow_counts["rejected_direct"])
             colors.append(color_map["rejected"])
         
-        # Interview stages (build chain - ensure they're sorted by stage number)
-        interview_stages = []
-        for i in range(1, 6):
-            status = f"interview_{i}"
-            count = self.stats["by_status"].get(status, 0)
-            if count > 0:
-                interview_stages.append((i, count))
-        
-        # Ensure interview stages are sorted by stage number
-        interview_stages.sort(key=lambda x: x[0])
-        
-        # Track the last interview stage index for connecting offers
-        last_interview_idx = total_idx
-        
-        if interview_stages:
-            # First interview connects from total
-            stage_num, count = interview_stages[0]
-            stage_label = f"Interview {stage_num}"
-            if stage_num == 1:
-                stage_label = "First Interview"
-            stage_idx = get_or_add_label(stage_label)
-            labels[stage_idx] = f"{stage_label} ({count})"
-            
+        if flow_counts["withdrew_direct"] > 0:
+            withdrew_direct_idx = get_or_add_label("Withdrew (No Interview)")
+            labels[withdrew_direct_idx] = f"Withdrew ({flow_counts['withdrew_direct']})"
             source_indices.append(total_idx)
-            target_indices.append(stage_idx)
-            values.append(count)
-            colors.append(color_map["interview"])
-            
-            last_interview_idx = stage_idx
-            
-            # Subsequent interviews connect in sequence (sorted by stage number)
-            for stage_num, count in interview_stages[1:]:
-                prev_stage_idx = last_interview_idx
-                stage_label = f"Interview {stage_num}"
-                stage_idx = get_or_add_label(stage_label)
-                labels[stage_idx] = f"{stage_label} ({count})"
-                
-                source_indices.append(prev_stage_idx)
-                target_indices.append(stage_idx)
-                values.append(count)
-                colors.append(color_map["interview"])
-                
-                last_interview_idx = stage_idx
-        
-        # Withdrew (can happen from any interview stage or directly)
-        withdrew_count = self.stats["by_status"].get("withdrew", 0)
-        if withdrew_count > 0:
-            withdrew_idx = get_or_add_label("Withdrew Application")
-            labels[withdrew_idx] = f"Withdrew Application ({withdrew_count})"
-            # Connect from last interview stage if exists, otherwise from total
-            source_indices.append(last_interview_idx if interview_stages else total_idx)
-            target_indices.append(withdrew_idx)
-            values.append(withdrew_count)
+            target_indices.append(withdrew_direct_idx)
+            values.append(flow_counts["withdrew_direct"])
             colors.append(color_map["withdrew"])
         
-        # Offer (connects from last interview stage or total)
-        offer_count = self.stats["by_status"].get("offer", 0)
-        if offer_count > 0:
+        if flow_counts["no_reply"] > 0:
+            no_reply_idx = get_or_add_label("No Reply")
+            labels[no_reply_idx] = f"No Reply ({flow_counts['no_reply']})"
+            source_indices.append(total_idx)
+            target_indices.append(no_reply_idx)
+            values.append(flow_counts["no_reply"])
+            colors.append(color_map["no_reply"])
+        
+        # Interview stages with flows
+        interview_stage_indices = {}
+        sorted_stages = sorted(set(list(flow_counts["interview_reached"].keys()) + 
+                                   list(flow_counts["rejected_from_interview"].keys()) +
+                                   list(flow_counts["withdrew_from_interview"].keys())))
+        
+        last_stage_idx = total_idx
+        
+        for stage_num in sorted_stages:
+            # Create interview stage node
+            stage_label = f"Interview {stage_num}" if stage_num > 1 else "First Interview"
+            stage_idx = get_or_add_label(stage_label)
+            
+            # Count companies that reached this stage
+            reached = flow_counts["interview_reached"].get(stage_num, 0)
+            rejected_after = flow_counts["rejected_from_interview"].get(stage_num, 0)
+            withdrew_after = flow_counts["withdrew_from_interview"].get(stage_num, 0)
+            total_at_stage = reached + rejected_after + withdrew_after
+            
+            labels[stage_idx] = f"{stage_label} ({total_at_stage})"
+            interview_stage_indices[stage_num] = stage_idx
+            
+            # Connect from previous stage or total
+            source_indices.append(last_stage_idx)
+            target_indices.append(stage_idx)
+            values.append(total_at_stage)
+            colors.append(color_map["interview"])
+            
+            # Flow to rejected (companies rejected after this interview)
+            if rejected_after > 0:
+                rejected_after_idx = get_or_add_label(f"Rejected After Interview {stage_num}")
+                labels[rejected_after_idx] = f"Rejected ({rejected_after})"
+                source_indices.append(stage_idx)
+                target_indices.append(rejected_after_idx)
+                values.append(rejected_after)
+                colors.append(color_map["rejected"])
+            
+            # Flow to withdrew (companies that withdrew after this interview)
+            if withdrew_after > 0:
+                withdrew_after_idx = get_or_add_label(f"Withdrew After Interview {stage_num}")
+                labels[withdrew_after_idx] = f"Withdrew ({withdrew_after})"
+                source_indices.append(stage_idx)
+                target_indices.append(withdrew_after_idx)
+                values.append(withdrew_after)
+                colors.append(color_map["withdrew"])
+            
+            # If no next stage and no rejection/withdrew, mark as no progression
+            next_stage = stage_num + 1
+            if next_stage not in sorted_stages and reached > 0:
+                # These companies reached this stage but didn't advance
+                no_progress_idx = get_or_add_label(f"No Progress After Interview {stage_num}")
+                labels[no_progress_idx] = f"No Progress ({reached})"
+                source_indices.append(stage_idx)
+                target_indices.append(no_progress_idx)
+                values.append(reached)
+                colors.append(color_map["no_reply"])
+            
+            last_stage_idx = stage_idx
+        
+        # Offer flow (from last interview stage)
+        if flow_counts["offer"] > 0 or flow_counts["accepted"] > 0 or flow_counts["declined_offer"] > 0:
+            total_offers = flow_counts["offer"] + flow_counts["accepted"] + flow_counts["declined_offer"]
             offer_idx = get_or_add_label("Offer")
-            labels[offer_idx] = f"Offer ({offer_count})"
-            source_indices.append(last_interview_idx if interview_stages else total_idx)
+            labels[offer_idx] = f"Offer ({total_offers})"
+            source_indices.append(last_stage_idx if interview_stage_indices else total_idx)
             target_indices.append(offer_idx)
-            values.append(offer_count)
+            values.append(total_offers)
             colors.append(color_map["offer"])
             
-            # From Offer: Accepted and Declined
-            accepted_count = self.stats["by_status"].get("accepted", 0)
-            declined_count = offer_count - accepted_count
-            
-            if accepted_count > 0:
+            if flow_counts["accepted"] > 0:
                 accepted_idx = get_or_add_label("Accepted")
-                labels[accepted_idx] = f"Accepted ({accepted_count})"
+                labels[accepted_idx] = f"Accepted ({flow_counts['accepted']})"
                 source_indices.append(offer_idx)
                 target_indices.append(accepted_idx)
-                values.append(accepted_count)
+                values.append(flow_counts["accepted"])
                 colors.append(color_map["accepted"])
             
-            if declined_count > 0:
-                declined_idx = get_or_add_label("Declined")
-                labels[declined_idx] = f"Declined ({declined_count})"
+            if flow_counts["declined_offer"] > 0:
+                declined_idx = get_or_add_label("Declined Offer")
+                labels[declined_idx] = f"Declined ({flow_counts['declined_offer']})"
                 source_indices.append(offer_idx)
                 target_indices.append(declined_idx)
-                values.append(declined_count)
+                values.append(flow_counts["declined_offer"])
                 colors.append(color_map["declined"])
         
         # Create Sankey diagram

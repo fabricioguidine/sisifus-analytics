@@ -239,6 +239,12 @@ def main():
     print("=" * 60)
     print("SUMMARY")
     print("=" * 60)
+    if args.months:
+        print(f"Date Filter: Last {args.months} months")
+    if args.year:
+        print(f"Date Filter: Year {args.year}")
+    if args.months or args.year:
+        print("-" * 60)
     print(f"Total Job-Related Emails: {summary['total_applications']}")
     print(f"Rejected: {summary['rejected_count']}")
     print(f"Offers: {summary['offers_count']}")

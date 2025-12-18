@@ -251,7 +251,7 @@ class AnalyticsGenerator:
             values.append(rejected_total)
             colors.append(color_map["rejected"])
         
-        # Interview stages (build chain)
+        # Interview stages (build chain - ensure they're sorted by stage number)
         interview_stages = []
         for i in range(1, 6):
             status = f"interview_{i}"
@@ -259,13 +259,18 @@ class AnalyticsGenerator:
             if count > 0:
                 interview_stages.append((i, count))
         
+        # Ensure interview stages are sorted by stage number
+        interview_stages.sort(key=lambda x: x[0])
+        
         # Track the last interview stage index for connecting offers
         last_interview_idx = total_idx
         
         if interview_stages:
             # First interview connects from total
             stage_num, count = interview_stages[0]
-            stage_label = f"First Interview"
+            stage_label = f"Interview {stage_num}"
+            if stage_num == 1:
+                stage_label = "First Interview"
             stage_idx = get_or_add_label(stage_label)
             labels[stage_idx] = f"{stage_label} ({count})"
             
@@ -276,10 +281,10 @@ class AnalyticsGenerator:
             
             last_interview_idx = stage_idx
             
-            # Subsequent interviews connect in sequence
+            # Subsequent interviews connect in sequence (sorted by stage number)
             for stage_num, count in interview_stages[1:]:
                 prev_stage_idx = last_interview_idx
-                stage_label = f"Interview {stage_num}" if stage_num == 2 else f"Interview {stage_num}"
+                stage_label = f"Interview {stage_num}"
                 stage_idx = get_or_add_label(stage_label)
                 labels[stage_idx] = f"{stage_label} ({count})"
                 

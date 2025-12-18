@@ -29,6 +29,20 @@ class EmailClassifier:
             r"we.*received.*your.*application",
             r"application.*sent",
             r"applied.*for",
+            r"your.*application",  # Generic application reference
+            r"alert.*application",  # Application alerts
+            r"candidate-se",  # Portuguese: apply now
+            r"candidate.*se",  # Portuguese: apply
+            r"aplicar",  # Portuguese: apply
+            r"novas.*vagas",  # Portuguese: new jobs
+            r"job.*opportunity",  # Job opportunities
+            r".*opportunity",  # Opportunities (engineer, qa, etc.)
+            r"vagas.*em",  # Portuguese: jobs in
+            r"job.*alert",  # Job alerts
+            r"new.*position",  # New positions
+            r"open.*position",  # Open positions
+            r"we.*are.*hiring",  # Hiring announcements
+            r"looking.*for.*",  # Looking for candidates
         ],
         "confirmation": [
             r"confirmation.*application",
@@ -36,6 +50,7 @@ class EmailClassifier:
             r"we.*have.*received.*application",
             r"application.*successfully.*received",
             r"confirm.*receipt.*application",
+            r"application.*status.*update",  # Status updates
         ],
         "interview_1": [
             r"first.*interview",
@@ -48,6 +63,9 @@ class EmailClassifier:
             r"preliminary.*interview",
             r"first.*round",
             r"round.*1.*interview",
+            r"first.*round.*interview",  # More explicit
+            r"take.*home.*assessment",  # Take-home assignments
+            r"assessment",  # Assessment/test
         ],
         "interview_2": [
             r"second.*interview",
@@ -114,6 +132,7 @@ class EmailClassifier:
             r"not.*advancing",
             r"will.*not.*be.*moving.*forward",
             r"we.*will.*not.*be.*moving.*forward",
+            r"application.*status.*update",  # Often rejection emails
         ],
         "withdrew": [
             r"withdraw.*application",
@@ -140,7 +159,16 @@ class EmailClassifier:
             r"application.*submitted", r"thank.*for.*your.*application",
             r"offer", r"rejection", r"withdraw.*application",
             r"linkedin", r"indeed", r"glassdoor", r"monster", r"ziprecruiter",
-            r"ats", r"applicant.*tracking", r"job.*board"
+            r"ats", r"applicant.*tracking", r"job.*board",
+            r"vaga", r"vagas",  # Portuguese: job/jobs
+            r"emprego",  # Portuguese: employment
+            r"trabalho",  # Portuguese: work
+            r"candidate-se",  # Portuguese: apply now
+            r"aplicar",  # Portuguese: apply
+            r"engineer.*opportunity",  # Job opportunity patterns
+            r".*engineer.*position",  # Engineering positions
+            r"qa.*opportunity",  # QA positions
+            r"automation.*qa",  # QA automation
         ]
         self.job_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.job_keywords]
     
@@ -149,8 +177,12 @@ class EmailClassifier:
         text = f"{subject} {body[:2000]} {from_address}".lower()
         # Check if any job keyword matches
         matches = sum(1 for pattern in self.job_patterns if pattern.search(text))
-        # Need at least 1-2 matches to be considered job-related
-        return matches >= 1
+        # Need at least 1 match to be considered job-related
+        # Also check common job-related company domains/names
+        job_companies = ["linkedin", "indeed", "glassdoor", "monster", "ziprecruiter", 
+                         "flexjobs", "jobs", "recruiter", "hiring", "careers"]
+        company_match = any(jc in from_address.lower() for jc in job_companies)
+        return matches >= 1 or company_match
     
     def classify_email(self, subject: str, body: str, from_address: str = "") -> Tuple[str, float]:
         """
@@ -226,11 +258,12 @@ class EmailClassifier:
         if scores.get("confirmation", 0) > 0.4:
             return ("confirmation", scores["confirmation"])
         
-        # Applied
-        if scores.get("applied", 0) > 0.3:
-            return ("applied", scores["applied"])
+        # Applied - lower threshold to catch job board notifications and opportunities
+        if scores.get("applied", 0) > 0.1:  # Lower threshold for more flexibility
+            return ("applied", max(scores["applied"], 0.3))  # Minimum confidence of 0.3
         
-        # Default: no_reply (if no match)
+        # Default: no_reply (if no match, but email is job-related)
+        # This means email is job-related but doesn't fit any specific category
         return ("no_reply", 0.0)
     
     def extract_company_name(self, from_address: str, subject: str) -> Optional[str]:

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from tqdm import tqdm
 import mailbox
+from datetime import datetime
 
 from src.config import INPUT_DIR
 
@@ -16,27 +17,76 @@ class EmailImporter:
         self.input_dir = input_dir or INPUT_DIR
         self.input_dir.mkdir(exist_ok=True)
     
-    def import_from_mbox(self, mbox_path: Path) -> List[Dict]:
-        """Import emails from mbox file (Google Takeout format)"""
+    def import_from_mbox(self, mbox_path: Path, timeout_minutes: int = 30) -> List[Dict]:
+        """
+        Import emails from mbox file (Google Takeout format)
+        
+        Args:
+            mbox_path: Path to .mbox file
+            timeout_minutes: Maximum time to wait (default: 30 minutes)
+        
+        Returns:
+            List of email dictionaries
+        """
         emails = []
+        start_time = datetime.now()
         
         if not mbox_path.exists():
-            print(f"Error: File not found: {mbox_path}")
+            print(f"[ERROR] File not found: {mbox_path}")
             return emails
         
         try:
+            print(f"[INFO] Opening mbox file: {mbox_path.name}")
+            print(f"[INFO] This may take several minutes for large files...")
             mbox = mailbox.mbox(str(mbox_path))
             total = len(mbox)
             
-            for msg in tqdm(mbox, desc=f"Importing from {mbox_path.name}", total=total, unit="email"):
-                email_data = self._parse_message(msg)
-                if email_data:
-                    emails.append(email_data)
+            if total == 0:
+                print(f"[WARNING] Mbox file appears to be empty")
+                return emails
             
-            print(f"[SUCCESS] Imported {len(emails)} emails from mbox file")
+            print(f"[INFO] Found {total} emails in file")
+            print(f"[INFO] Starting import (timeout: {timeout_minutes} minutes)...")
+            
+            imported_count = 0
+            error_count = 0
+            
+            for msg in tqdm(mbox, desc=f"Importing from {mbox_path.name}", total=total, unit="email"):
+                # Check for timeout
+                elapsed = (datetime.now() - start_time).total_seconds() / 60
+                if elapsed > timeout_minutes:
+                    print(f"\n[WARNING] Timeout reached ({timeout_minutes} minutes)")
+                    print(f"[INFO] Imported {imported_count} emails before timeout")
+                    print(f"[INFO] You can continue importing later - the process will skip already imported emails")
+                    break
+                
+                try:
+                    email_data = self._parse_message(msg)
+                    if email_data:
+                        emails.append(email_data)
+                        imported_count += 1
+                except Exception as e:
+                    error_count += 1
+                    if error_count <= 5:  # Only show first 5 errors
+                        print(f"\n[WARNING] Error parsing email {imported_count + error_count}: {str(e)[:100]}")
+                    continue
+            
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            print(f"\n[SUCCESS] Imported {len(emails)} emails from mbox file in {elapsed_time:.1f} seconds")
+            if error_count > 0:
+                print(f"[INFO] {error_count} emails had parsing errors and were skipped")
+            
+            return emails
+        except KeyboardInterrupt:
+            print(f"\n[INFO] Import interrupted by user")
+            print(f"[INFO] Imported {len(emails)} emails before interruption")
             return emails
         except Exception as e:
-            print(f"Error reading mbox file: {e}")
+            print(f"\n[ERROR] Error reading mbox file: {type(e).__name__}: {e}")
+            print(f"[INFO] Successfully imported {len(emails)} emails before error occurred")
+            import traceback
+            print(f"[DEBUG] Full error traceback:")
+            traceback.print_exc()
             return emails
     
     
@@ -153,18 +203,46 @@ class EmailImporter:
         print(f"[INFO] Found {len(mbox_files)} .mbox file(s)")
         
         # Filter out any .mbox files in configuration/user settings folders
+        # Only filter if they're in a subdirectory that looks like a settings folder
         filtered_mbox_files = []
         for mbox_file in mbox_files:
-            # Skip files in configuration/settings folders
-            path_str = str(mbox_file).lower()
-            if 'configurações' in path_str or 'settings' in path_str or 'user' in path_str:
-                continue
-            filtered_mbox_files.append(mbox_file)
+            # Skip files only if they're in a configuration/settings folder path
+            # Check folder structure, not filename
+            path_parts = [p.lower() for p in mbox_file.parts[:-1]]  # Exclude filename itself
+            
+            # Check if any parent directory is a settings folder
+            is_in_settings_folder = False
+            for part in path_parts:
+                # Only match exact folder names that indicate settings/config folders
+                if part in ['configurações do usuário', 'user settings', 'user settings folder']:
+                    is_in_settings_folder = True
+                    break
+            
+            if not is_in_settings_folder:
+                filtered_mbox_files.append(mbox_file)
+            else:
+                print(f"[INFO] Skipping file in settings folder: {mbox_file.relative_to(self.input_dir)}")
+        
+        if not filtered_mbox_files:
+            print(f"[WARNING] No valid .mbox files found after filtering")
+            return all_emails
         
         for mbox_file in filtered_mbox_files:
-            print(f"\nFound mbox file: {mbox_file.relative_to(self.input_dir)}")
-            emails = self.import_from_mbox(mbox_file)
-            all_emails.extend(emails)
+            print(f"\n[INFO] Processing mbox file: {mbox_file.relative_to(self.input_dir)}")
+            try:
+                file_emails = self.import_from_mbox(mbox_file)
+                all_emails.extend(file_emails)
+                if len(file_emails) == 0:
+                    print(f"[WARNING] No emails were imported from {mbox_file.name}")
+            except KeyboardInterrupt:
+                print(f"\n[INFO] Import process interrupted by user")
+                print(f"[INFO] Successfully imported {len(all_emails)} emails before interruption")
+                break
+            except Exception as e:
+                print(f"\n[ERROR] Failed to import from {mbox_file.name}: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
         
         return all_emails
 

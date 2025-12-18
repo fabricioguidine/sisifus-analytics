@@ -124,11 +124,30 @@ def main():
     classifier = EmailClassifier()
     
     classified_emails = []
-    for email_data in tqdm(emails, desc="Classifying", unit="email"):
-        classified = classifier.classify_emails([email_data])
-        classified_emails.extend(classified)
+    error_count = 0
+    try:
+        for email_data in tqdm(emails, desc="Classifying", unit="email"):
+            try:
+                classified = classifier.classify_emails([email_data])
+                classified_emails.extend(classified)
+            except Exception as e:
+                error_count += 1
+                if error_count <= 5:
+                    print(f"\n[WARNING] Error classifying email: {str(e)[:100]}")
+                continue
+    except KeyboardInterrupt:
+        print(f"\n[INFO] Classification interrupted by user")
+        print(f"[INFO] Successfully classified {len(classified_emails)} emails before interruption")
+    except Exception as e:
+        print(f"\n[ERROR] Error during classification: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
     
     print(f"[SUCCESS] Classified {len(classified_emails)} emails")
+    if error_count > 0:
+        print(f"[INFO] {error_count} emails had classification errors")
+    if error_count > 0:
+        print(f"[WARNING] {error_count} emails had classification errors")
     print()
     
     print("Step 4: Generating analytics...")

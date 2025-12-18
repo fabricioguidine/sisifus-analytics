@@ -29,28 +29,41 @@ class AnalyticsGenerator:
         }
         
         print("Calculating statistics...")
-        for email_data in tqdm(self.emails, desc="Analyzing emails", unit="email"):
-            status = email_data.get("status", "no_reply")
-            company = email_data.get("company", "Unknown")
-            date = email_data.get("date")
-            
-            stats["by_status"][status] += 1
-            stats["by_company"][company]["count"] += 1
-            stats["by_company"][company]["statuses"].append(status)
-            
-            if date:
-                if not stats["date_range"]["earliest"] or date < stats["date_range"]["earliest"]:
-                    stats["date_range"]["earliest"] = date
-                if not stats["date_range"]["latest"] or date > stats["date_range"]["latest"]:
-                    stats["date_range"]["latest"] = date
-            
-            stats["applications"].append({
-                "company": company,
-                "status": status,
-                "date": date.isoformat() if date else None,
-                "subject": email_data.get("subject", ""),
-                "confidence": email_data.get("confidence", 0.0)
-            })
+        error_count = 0
+        try:
+            for email_data in tqdm(self.emails, desc="Analyzing emails", unit="email"):
+                try:
+                    status = email_data.get("status", "no_reply")
+                    company = email_data.get("company", "Unknown")
+                    date = email_data.get("date")
+                    
+                    stats["by_status"][status] += 1
+                    stats["by_company"][company]["count"] += 1
+                    stats["by_company"][company]["statuses"].append(status)
+                    
+                    if date:
+                        if not stats["date_range"]["earliest"] or date < stats["date_range"]["earliest"]:
+                            stats["date_range"]["earliest"] = date
+                        if not stats["date_range"]["latest"] or date > stats["date_range"]["latest"]:
+                            stats["date_range"]["latest"] = date
+                    
+                    stats["applications"].append({
+                        "company": company,
+                        "status": status,
+                        "date": date.isoformat() if date else None,
+                        "subject": email_data.get("subject", ""),
+                        "confidence": email_data.get("confidence", 0.0)
+                    })
+                except Exception as e:
+                    error_count += 1
+                    if error_count <= 5:
+                        print(f"\n[WARNING] Error processing email for stats: {e}")
+                    continue
+        except KeyboardInterrupt:
+            print(f"\n[INFO] Statistics calculation interrupted by user")
+        
+        if error_count > 0:
+            print(f"[WARNING] {error_count} emails had errors during statistics calculation")
         
         return stats
     

@@ -68,12 +68,25 @@ class EmailStorage:
                     data["metadata"]["total_emails"] = len(emails_to_save)
             
             # Save to file
-            with open(self.storage_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            
-            return True
+            print(f"[INFO] Writing {len(emails_to_save)} emails to file...")
+            try:
+                with open(self.storage_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                print(f"[SUCCESS] File saved successfully")
+                return True
+            except Exception as write_error:
+                print(f"[ERROR] Error writing to file: {write_error}")
+                import traceback
+                traceback.print_exc()
+                return False
+        except KeyboardInterrupt:
+            print(f"\n[ERROR] Save operation interrupted by user")
+            raise
         except Exception as e:
-            print(f"Error saving emails: {e}")
+            print(f"[ERROR] Error saving emails: {e}")
+            print(f"[ERROR] Error type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def load_emails(self) -> Optional[List[Dict]]:
@@ -87,25 +100,60 @@ class EmailStorage:
             return None
         
         try:
-            print(f"Loading emails from {self.storage_file.name}...")
+            print(f"[INFO] Loading emails from {self.storage_file.name}...")
+            file_size = self.storage_file.stat().st_size / (1024*1024)
+            print(f"[INFO] File size: {file_size:.2f} MB")
+            
+            print("[INFO] Reading JSON file...")
             with open(self.storage_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             emails = data.get("emails", [])
+            print(f"[INFO] Found {len(emails)} emails in file")
+            
+            if len(emails) == 0:
+                print("[WARNING] No emails found in file")
+                return emails
             
             # Convert ISO date strings back to datetime objects
-            print(f"Processing {len(emails)} emails...")
+            print("[INFO] Processing email dates...")
+            processed_count = 0
+            error_count = 0
             for email_data in tqdm(emails, desc="Loading emails", unit="email"):
-                if "date" in email_data and email_data["date"]:
-                    try:
-                        email_data["date"] = datetime.fromisoformat(email_data["date"])
-                    except (ValueError, TypeError):
-                        # If parsing fails, keep as string
-                        pass
+                try:
+                    if "date" in email_data and email_data["date"]:
+                        try:
+                            email_data["date"] = datetime.fromisoformat(email_data["date"])
+                        except (ValueError, TypeError):
+                            # If parsing fails, keep as string
+                            pass
+                    processed_count += 1
+                except Exception as e:
+                    error_count += 1
+                    if error_count <= 5:
+                        print(f"\n[WARNING] Error processing email: {e}")
+                    continue
+            
+            if error_count > 0:
+                print(f"\n[WARNING] {error_count} emails had processing errors")
             
             return emails
+            
+        except KeyboardInterrupt:
+            print(f"\n[ERROR] Load operation interrupted by user")
+            raise
+        except FileNotFoundError:
+            print(f"[ERROR] File not found: {self.storage_file}")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] Invalid JSON file: {e}")
+            print(f"[ERROR] The file may be corrupted")
+            return None
         except Exception as e:
-            print(f"Error loading emails: {e}")
+            print(f"[ERROR] Error loading emails: {e}")
+            print(f"[ERROR] Error type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def get_metadata(self) -> Optional[Dict]:

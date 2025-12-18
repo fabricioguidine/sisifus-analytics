@@ -354,6 +354,7 @@ The application tracks:
 - Classification is based on keyword matching, so unusual email wording might not be classified correctly
 - Company name extraction relies on email domains, which may not always be accurate
 - The Sankey diagram flow assumes a linear progression (applications → interviews → offers)
+- Very large datasets (500K+ emails) may require additional memory and processing time
 
 ## 🔧 Troubleshooting
 

@@ -218,12 +218,13 @@ class AnalyticsGenerator:
         
         # Count companies by their actual flow outcome
         flow_counts = {
-            "interview_reached": {},  # interview stage -> count
+            "interview_reached": {},  # interview stage -> count (for progression only)
             "rejected_from_interview": {},  # interview stage -> count (rejected after this stage)
             "rejected_direct": 0,  # rejected without interview
             "withdrew_from_interview": {},  # interview stage -> count
             "withdrew_direct": 0,
-            "no_reply": 0,
+            "ghosted_from_interview": {},  # interview stage -> count (ghosted after this stage)
+            "ghosted_direct": 0,  # ghosted without interview
             "offer": 0,
             "accepted": 0,
             "declined_offer": 0,

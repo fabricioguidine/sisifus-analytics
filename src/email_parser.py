@@ -80,17 +80,17 @@ class EmailParser:
                 content_type = part.get_content_type()
                 if content_type == "text/plain":
                     payload = part.get_payload(decode=True)
-                    if payload:
+                    if isinstance(payload, bytes):
                         body += payload.decode("utf-8", errors="ignore")
                 elif content_type == "text/html":
                     payload = part.get_payload(decode=True)
-                    if payload:
+                    if isinstance(payload, bytes):
                         html_content = payload.decode("utf-8", errors="ignore")
                         body += self._extract_text_from_html(html_content)
         else:
             content_type = msg.get_content_type()
             payload = msg.get_payload(decode=True)
-            if payload:
+            if isinstance(payload, bytes):
                 if content_type == "text/html":
                     body = self._extract_text_from_html(payload.decode("utf-8", errors="ignore"))
                 else:

@@ -1,17 +1,18 @@
 """Tests for email classifier logic"""
 
 import pytest
+
 from src.classifier import EmailClassifier
 
 
 class TestEmailClassifier:
     """Test cases for EmailClassifier"""
-    
+
     @pytest.fixture
     def classifier(self):
         """Create classifier instance"""
         return EmailClassifier()
-    
+
     def test_classify_applied(self, classifier):
         """Test classification of application emails"""
         subject = "Application submitted"
@@ -19,7 +20,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "applied"
         assert confidence > 0.3
-    
+
     def test_classify_confirmation(self, classifier):
         """Test classification of confirmation emails"""
         subject = "Application Confirmation"
@@ -27,7 +28,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "confirmation"
         assert confidence > 0.4
-    
+
     def test_classify_interview_1(self, classifier):
         """Test classification of first interview emails"""
         subject = "First Interview Invitation"
@@ -35,7 +36,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "interview_1"
         assert confidence > 0.4
-    
+
     def test_classify_interview_2(self, classifier):
         """Test classification of second interview emails"""
         subject = "Second Round Interview"
@@ -43,7 +44,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "interview_2"
         assert confidence > 0.4
-    
+
     def test_classify_interview_3(self, classifier):
         """Test classification of third interview emails"""
         subject = "Final Interview"
@@ -51,7 +52,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "interview_3"
         assert confidence > 0.4
-    
+
     def test_classify_offer(self, classifier):
         """Test classification of job offer emails"""
         subject = "Job Offer"
@@ -59,7 +60,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "offer"
         assert confidence > 0.5
-    
+
     def test_classify_accepted(self, classifier):
         """Test classification of accepted offer emails"""
         subject = "Offer Accepted"
@@ -67,7 +68,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "accepted"
         assert confidence > 0.5
-    
+
     def test_classify_rejected(self, classifier):
         """Test classification of rejection emails"""
         subject = "Application Status Update"
@@ -75,7 +76,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "rejected"
         assert confidence > 0.5
-    
+
     def test_classify_rejected_variations(self, classifier):
         """Test various rejection email phrasings"""
         rejection_phrases = [
@@ -85,14 +86,14 @@ class TestEmailClassifier:
             "not the right fit at this time",
             "regret to inform you",
         ]
-        
+
         for phrase in rejection_phrases:
             subject = "Application Update"
             body = f"Thank you for your interest. {phrase}."
             status, confidence = classifier.classify_email(subject, body)
             assert status == "rejected", f"Failed for phrase: {phrase}"
             assert confidence > 0.4
-    
+
     def test_classify_withdrew(self, classifier):
         """Test classification of withdrawal emails"""
         subject = "Withdrawing Application"
@@ -100,35 +101,35 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "withdrew"
         assert confidence > 0.5
-    
+
     def test_rejection_priority(self, classifier):
         """Test that rejection takes priority over other statuses"""
         subject = "Interview Update"
         body = "Thank you for the interview. Unfortunately, we have decided not to move forward"
         status, confidence = classifier.classify_email(subject, body)
         assert status == "rejected"
-    
+
     def test_offer_priority_over_interview(self, classifier):
         """Test that offer takes priority over interview stages"""
         subject = "Next Steps"
         body = "We would like to offer you the position after your interviews"
         status, confidence = classifier.classify_email(subject, body)
         assert status == "offer"
-    
+
     def test_extract_company_name_from_email(self, classifier):
         """Test company name extraction from email address"""
         from_addr = "John Doe <john@example-company.com>"
         company = classifier.extract_company_name(from_addr, "")
         assert company is not None
         assert "example-company" in company.lower() or "john doe" in company.lower()
-    
+
     def test_extract_company_name_from_domain(self, classifier):
         """Test company name extraction from domain"""
         from_addr = "hr@techstartup.com"
         company = classifier.extract_company_name(from_addr, "")
         assert company is not None
         assert "techstartup" in company.lower()
-    
+
     def test_classify_multiple_emails(self, classifier):
         """Test batch classification"""
         emails = [
@@ -136,7 +137,7 @@ class TestEmailClassifier:
             {"subject": "First Interview", "body": "Phone screen", "from": "hr@company.com"},
             {"subject": "Job Offer", "body": "We offer you", "from": "manager@company.com"},
         ]
-        
+
         classified = classifier.classify_emails(emails)
         assert len(classified) == 3
         assert classified[0]["status"] == "applied"
@@ -144,7 +145,7 @@ class TestEmailClassifier:
         assert classified[2]["status"] == "offer"
         assert all("confidence" in email for email in classified)
         assert all("company" in email for email in classified)
-    
+
     def test_no_reply_classification(self, classifier):
         """Test that job-related emails without status match get no_reply"""
         # Use an email that is job-related but doesn't match specific status patterns
@@ -153,7 +154,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "no_reply"
         assert confidence == 0.0
-    
+
     def test_not_job_related_classification(self, classifier):
         """Test that unrelated emails get not_job_related status"""
         subject = "Newsletter"
@@ -161,7 +162,7 @@ class TestEmailClassifier:
         status, confidence = classifier.classify_email(subject, body)
         assert status == "not_job_related"
         assert confidence == 0.0
-    
+
     def test_confidence_scores(self, classifier):
         """Test that confidence scores are reasonable"""
         test_cases = [
@@ -170,11 +171,9 @@ class TestEmailClassifier:
             ("Job Offer", "We are pleased to offer you the position"),
             ("Application Rejected", "Not moving forward with your application"),
         ]
-        
+
         for subject, body in test_cases:
             status, confidence = classifier.classify_email(subject, body)
             assert 0.0 <= confidence <= 1.0
             if status not in ["no_reply", "not_job_related"]:
                 assert confidence > 0.0
-
-

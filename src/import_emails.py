@@ -1,7 +1,7 @@
 """Script to import emails from exported files (Google Takeout, etc.)"""
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 from src.config import INPUT_DIR
@@ -9,10 +9,12 @@ from src.email_importer import EmailImporter
 from src.email_storage import EmailStorage
 
 
-def import_emails(source_path: str = None, format_type: str = None, output_file: str = "emails.json"):
+def import_emails(
+    source_path: str = None, format_type: str = None, output_file: str = "emails.json"
+):
     """
     Import emails from .mbox file and save to input folder
-    
+
     Args:
         source_path: Path to .mbox file (optional, auto-detects if not provided)
         format_type: Not used (kept for compatibility)
@@ -22,19 +24,19 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
     print("Email Import Tool")
     print("=" * 60)
     print()
-    
+
     importer = EmailImporter()
     storage = EmailStorage(storage_file=output_file)
-    
+
     emails = []
-    
+
     if source_path:
         # Import from specific file/directory
         source = Path(source_path)
         if not source.exists():
             print(f"Error: Path not found: {source_path}")
             sys.exit(1)
-        
+
         if source.suffix == ".mbox":
             print(f"Importing from mbox file: {source.name}")
             emails = importer.import_from_mbox(source)
@@ -49,28 +51,28 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
         print("Auto-detecting .mbox files in input folder...")
         print("(This may take a moment if you have many files)")
         emails = importer.auto_import()
-    
+
     if not emails:
         print("\n[ERROR] No emails imported. Please check your files.")
         sys.exit(1)
-    
+
     print(f"\n[SUCCESS] Total emails imported: {len(emails)}")
     print()
-    
+
     # Save to emails.json
     print(f"Saving to {storage.storage_file}...")
     overwrite = not storage.file_exists()
     if storage.file_exists():
         try:
             response = input(f"File {storage.storage_file} exists. Overwrite? (y/n): ").lower()
-            overwrite = response == 'y'
+            overwrite = response == "y"
         except (EOFError, KeyboardInterrupt):
             # Non-interactive mode or interrupted - default to overwrite
             print("[INFO] Non-interactive mode: overwriting existing file")
             overwrite = True
-    
+
     success = storage.save_emails(emails, overwrite=overwrite)
-    
+
     if success:
         print(f"[SUCCESS] Saved {len(emails)} emails to {storage.storage_file}")
         print()
@@ -87,30 +89,20 @@ def import_emails(source_path: str = None, format_type: str = None, output_file:
 
 def main():
     """Main function with command-line arguments"""
-    parser = argparse.ArgumentParser(
-        description="Import emails from Google Takeout .mbox files"
-    )
+    parser = argparse.ArgumentParser(description="Import emails from Google Takeout .mbox files")
     parser.add_argument(
         "source",
         nargs="?",
-        help="Path to .mbox file. If not provided, auto-detects .mbox files in input folder."
+        help="Path to .mbox file. If not provided, auto-detects .mbox files in input folder.",
     )
     parser.add_argument(
-        "--output",
-        default="emails.json",
-        help="Output filename (default: emails.json)"
+        "--output", default="emails.json", help="Output filename (default: emails.json)"
     )
-    
+
     args = parser.parse_args()
-    
-    import_emails(
-        source_path=args.source,
-        format_type=None,
-        output_file=args.output
-    )
+
+    import_emails(source_path=args.source, format_type=None, output_file=args.output)
 
 
 if __name__ == "__main__":
     main()
-
-

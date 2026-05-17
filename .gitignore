@@ -1,4 +1,8 @@
-# Python
+# --- Claude / AI assistant artifacts ---
+CLAUDE.md
+.claude/
+
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
@@ -6,27 +10,60 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 *.egg-info/
 dist/
 build/
+pip-wheel-metadata/
 
-# Environment variables
+# --- Environment variables / secrets ---
 .env
 .env.local
+.env.*.local
 
-# IDE
+# --- IDE / editors ---
 .vscode/
 .idea/
 *.swp
 *.swo
+*.swn
+.DS_Store
+Thumbs.db
 
-# Output folder
+# --- Testing / type checking / linting caches ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# --- Data files (generated / large) ---
 output/
+*.parquet
+*.pkl
+*.pickle
+*.feather
+*.h5
+*.hdf5
+*.npy
+*.npz
 *.csv
 *.json
 *.html
 
-# Input folder - ignore everything
+# --- Input folder - ignore everything except placeholder ---
 input/*
 !input/.gitkeep
+
+# --- Mailbox / raw email exports ---
+*.mbox
+*.eml

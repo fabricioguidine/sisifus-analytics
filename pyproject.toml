@@ -1,0 +1,185 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sisifus-analytics"
+version = "1.0.0"
+description = "Job application email parser and analytics tool"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Fabricio Guidine", email = "fabricioguidine@gmail.com" }]
+keywords = ["email", "analytics", "job-search", "pandas", "sankey"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "tqdm>=4.66.0",
+    "plotly>=5.17.0",
+    "pandas>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "python-dateutil>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pandera>=0.18.0",
+    "pre-commit>=3.7.0",
+    "types-python-dateutil",
+    "types-beautifulsoup4",
+    "pandas-stubs",
+]
+notebooks = [
+    "jupyter>=1.0.0",
+    "jupytext>=1.16.0",
+    "nbqa>=1.8.0",
+    "nbstripout>=0.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/fabricioguidine/sisifus-analytics"
+Issues = "https://github.com/fabricioguidine/sisifus-analytics/issues"
+
+[tool.setuptools]
+package-dir = { "" = "." }
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+exclude = ["tests*", "input*", "output*"]
+
+# -----------------------------------------------------------------------------
+# pytest
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "src/main.py",
+    "src/extract_emails.py",
+    "src/import_emails.py",
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = false
+
+# -----------------------------------------------------------------------------
+# ruff
+# -----------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "input",
+    "output",
+    "*.ipynb_checkpoints",
+]
+
+[tool.ruff.lint]
+# Starter ruleset - intentionally conservative so the first CI pass is green
+# on legacy code. Subsequent PRs can ratchet up (B, SIM, UP, PD, PERF, etc.).
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "I",    # isort
+]
+ignore = [
+    "E501", # line-too-long (formatter handles)
+    "E722", # bare-except (legacy code; tighten in a followup)
+    "F401", # unused-import (legacy code; tighten in a followup)
+    "F541", # f-string-missing-placeholders (legacy code; tighten in a followup)
+    "F841", # unused-variable (legacy code; tighten in a followup)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+"src/main.py" = ["T201"]  # print is fine in CLI entry point
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# -----------------------------------------------------------------------------
+# mypy
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+show_error_codes = true
+pretty = true
+exclude = [
+    "build/",
+    "dist/",
+    "input/",
+    "output/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "plotly.*",
+    "tqdm.*",
+    "bs4.*",
+    "pandera.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = false

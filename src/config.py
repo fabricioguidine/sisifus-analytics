@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,4 +31,3 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 ANALYTICS_JSON = OUTPUT_DIR / "analytics.json"
 ANALYTICS_CSV = OUTPUT_DIR / "applications.csv"
 SANKEY_HTML = OUTPUT_DIR / "sankey_diagram.html"
-

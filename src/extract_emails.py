@@ -3,13 +3,14 @@
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 
 from src.config import EMAIL_ADDRESS, EMAIL_PASSWORD
 from src.email_parser import EmailParser
 from src.email_storage import EmailStorage
 
 
-def extract_emails(limit: int = None, overwrite: bool = True):
+def extract_emails(limit: Optional[int] = None, overwrite: bool = True):
     """Extract emails from email server and save to input folder"""
     print("=" * 60)
     print("Email Extraction Tool")

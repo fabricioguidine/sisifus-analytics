@@ -3,6 +3,7 @@
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 
 from src.config import INPUT_DIR
 from src.email_importer import EmailImporter
@@ -10,7 +11,9 @@ from src.email_storage import EmailStorage
 
 
 def import_emails(
-    source_path: str = None, format_type: str = None, output_file: str = "emails.json"
+    source_path: Optional[str] = None,
+    format_type: Optional[str] = None,
+    output_file: str = "emails.json",
 ):
     """
     Import emails from .mbox file and save to input folder

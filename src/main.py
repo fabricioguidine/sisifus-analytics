@@ -4,6 +4,7 @@ import argparse
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
@@ -15,7 +16,9 @@ from src.email_parser import EmailParser
 from src.email_storage import EmailStorage
 
 
-def filter_emails_by_date(emails: list, months: int = None, year: int = None) -> list:
+def filter_emails_by_date(
+    emails: list, months: Optional[int] = None, year: Optional[int] = None
+) -> list:
     """Filter emails by date criteria"""
     if not emails:
         return emails
@@ -116,8 +119,10 @@ def prompt_for_date_filter() -> tuple:
 
 
 def load_emails_from_input(
-    months: int = None, year: int = None, prompt_if_missing: bool = True
-) -> list:
+    months: Optional[int] = None,
+    year: Optional[int] = None,
+    prompt_if_missing: bool = True,
+) -> Optional[list]:
     """Load emails from input folder with optional date filtering"""
     storage = EmailStorage()
 
@@ -148,7 +153,7 @@ def load_emails_from_input(
     return emails
 
 
-def fetch_emails_from_server() -> list:
+def fetch_emails_from_server() -> Optional[list]:
     """Fetch emails from email server"""
     from src.config import EMAIL_ADDRESS, EMAIL_PASSWORD
 

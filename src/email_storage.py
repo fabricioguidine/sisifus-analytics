@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from tqdm import tqdm
 
@@ -43,7 +43,7 @@ class EmailStorage:
                 emails_to_save.append(email_dict)
 
             # Prepare data structure
-            data = {
+            data: Dict[str, Any] = {
                 "metadata": {
                     "export_date": datetime.now().isoformat(),
                     "total_emails": len(emails_to_save),
@@ -91,7 +91,9 @@ class EmailStorage:
             traceback.print_exc()
             return False
 
-    def load_emails(self, months: int = None, year: int = None) -> Optional[List[Dict]]:
+    def load_emails(
+        self, months: Optional[int] = None, year: Optional[int] = None
+    ) -> Optional[List[Dict]]:
         """
         Load emails from JSON file in input folder with optional date filtering
 
@@ -218,7 +220,8 @@ class EmailStorage:
         try:
             with open(self.storage_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return data.get("metadata")
+            metadata = data.get("metadata")
+            return metadata if isinstance(metadata, dict) else None
         except Exception as e:
             print(f"Error reading metadata: {e}")
             return None

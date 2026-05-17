@@ -20,16 +20,16 @@ class EmailParser:
 
     def __init__(
         self,
-        email_address: str = None,
-        password: str = None,
-        imap_server: str = None,
-        imap_port: int = None,
+        email_address: Optional[str] = None,
+        password: Optional[str] = None,
+        imap_server: Optional[str] = None,
+        imap_port: Optional[int] = None,
     ):
         self.email_address = email_address or EMAIL_ADDRESS
         self.password = password or EMAIL_PASSWORD
         self.imap_server = imap_server or IMAP_SERVER
         self.imap_port = imap_port or IMAP_PORT
-        self.imap = None
+        self.imap: Optional[imaplib.IMAP4_SSL] = None
 
     def connect(self) -> bool:
         """Establish secure IMAP connection"""
@@ -103,6 +103,7 @@ class EmailParser:
             if not self.connect():
                 return []
 
+        assert self.imap is not None
         try:
             self.imap.select("INBOX")
             _, message_numbers = self.imap.search(None, search_criteria)
@@ -117,7 +118,9 @@ class EmailParser:
             for num in tqdm(email_ids, desc="Fetching emails", unit="email"):
                 try:
                     _, msg_data = self.imap.fetch(num, "(RFC822)")
-                    msg = message_from_bytes(msg_data[0][1])
+                    raw = msg_data[0][1] if isinstance(msg_data[0], tuple) else msg_data[0]
+                    assert isinstance(raw, (bytes, bytearray))
+                    msg = message_from_bytes(bytes(raw))
 
                     subject = self._decode_header(msg["Subject"] or "")
                     from_addr = self._decode_header(msg["From"] or "")
@@ -151,7 +154,7 @@ class EmailParser:
             return []
 
     def fetch_job_related_emails(
-        self, keywords: List[str] = None, limit: Optional[int] = None
+        self, keywords: Optional[List[str]] = None, limit: Optional[int] = None
     ) -> List[Dict]:
         """Fetch emails related to job applications"""
         if keywords is None:

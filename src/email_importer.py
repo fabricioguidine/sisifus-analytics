@@ -14,7 +14,7 @@ from src.config import INPUT_DIR
 class EmailImporter:
     """Import emails from Google Takeout .mbox files"""
 
-    def __init__(self, input_dir: Path = None):
+    def __init__(self, input_dir: Optional[Path] = None):
         self.input_dir = input_dir or INPUT_DIR
         self.input_dir.mkdir(exist_ok=True)
 
@@ -29,7 +29,7 @@ class EmailImporter:
         Returns:
             List of email dictionaries
         """
-        emails = []
+        emails: List[Dict] = []
         start_time = datetime.now()
 
         if not mbox_path.exists():
@@ -188,18 +188,18 @@ class EmailImporter:
                 content_type = part.get_content_type()
                 if content_type == "text/plain":
                     payload = part.get_payload(decode=True)
-                    if payload:
+                    if payload and isinstance(payload, (bytes, bytearray)):
                         try:
-                            body += payload.decode("utf-8", errors="ignore")
+                            body += bytes(payload).decode("utf-8", errors="ignore")
                         except:
                             body += str(payload)
                 elif content_type == "text/html":
                     # Extract text from HTML if no plain text found
                     if not body:
                         payload = part.get_payload(decode=True)
-                        if payload:
+                        if payload and isinstance(payload, (bytes, bytearray)):
                             try:
-                                html_content = payload.decode("utf-8", errors="ignore")
+                                html_content = bytes(payload).decode("utf-8", errors="ignore")
                                 from bs4 import BeautifulSoup
 
                                 soup = BeautifulSoup(html_content, "lxml")
@@ -209,18 +209,18 @@ class EmailImporter:
         else:
             content_type = msg.get_content_type()
             payload = msg.get_payload(decode=True)
-            if payload:
+            if payload and isinstance(payload, (bytes, bytearray)):
                 if content_type == "text/html":
                     try:
                         from bs4 import BeautifulSoup
 
-                        html_content = payload.decode("utf-8", errors="ignore")
+                        html_content = bytes(payload).decode("utf-8", errors="ignore")
                         soup = BeautifulSoup(html_content, "lxml")
                         body = soup.get_text(separator=" ", strip=True)
                     except:
-                        body = payload.decode("utf-8", errors="ignore")
+                        body = bytes(payload).decode("utf-8", errors="ignore")
                 else:
-                    body = payload.decode("utf-8", errors="ignore")
+                    body = bytes(payload).decode("utf-8", errors="ignore")
 
         return body
 
@@ -229,7 +229,7 @@ class EmailImporter:
         Automatically detect and import .mbox files from input folder
         Recursively searches for .mbox files (handles Google Takeout folder structure)
         """
-        all_emails = []
+        all_emails: List[Dict] = []
 
         # Recursively look for .mbox files (handles nested Google Takeout folders)
         print("Searching for .mbox files...")

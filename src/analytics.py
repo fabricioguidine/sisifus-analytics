@@ -3,7 +3,7 @@
 import json
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -19,9 +19,9 @@ class AnalyticsGenerator:
         self.emails = emails
         self.stats = self._calculate_stats()
 
-    def _calculate_stats(self) -> Dict:
+    def _calculate_stats(self) -> Dict[str, Any]:
         """Calculate statistics from classified emails"""
-        stats = {
+        stats: Dict[str, Any] = {
             "total_emails": len(self.emails),
             "by_status": Counter(),
             "by_company": defaultdict(lambda: {"count": 0, "statuses": []}),
@@ -164,9 +164,9 @@ class AnalyticsGenerator:
         accuracy_percentage = (high_confidence_count / len(emails)) * 100
         return round(accuracy_percentage, 2)
 
-    def _get_company_flow(self) -> Dict[str, Dict]:
+    def _get_company_flow(self) -> Dict[str, Dict[str, Any]]:
         """Determine the flow for each company based on all their emails"""
-        company_flows = {}
+        company_flows: Dict[str, Dict[str, Any]] = {}
 
         for email_data in self.emails:
             company = email_data.get("company", "Unknown")
@@ -235,7 +235,7 @@ class AnalyticsGenerator:
             )
 
         # Count companies by their actual flow outcome
-        flow_counts = {
+        flow_counts: Dict[str, Any] = {
             "rejected_from_interview": {},  # interview stage -> count (rejected after this stage)
             "rejected_direct": 0,  # rejected without interview
             "withdrew_from_interview": {},  # interview stage -> count

@@ -2,7 +2,7 @@
 
 <img src=".github/assets/banner.svg" alt="sisifus-analytics" width="100%" />
 
-[![CI](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/fabricioguidine/sisifus-analytics/branch/main/graph/badge.svg)](https://codecov.io/gh/fabricioguidine/sisifus-analytics) [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![CI](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/fabricioguidine/sisifus-analytics/branch/main/graph/badge.svg)](https://codecov.io/gh/fabricioguidine/sisifus-analytics) [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 </div>
 
@@ -63,29 +63,57 @@ The pipeline is modular: ingestion (`email_importer`, `email_parser`), persisten
 
 ## Requirements
 
-- Python >= 3.10
+- Python >= 3.11
 - Runtime dependencies (installed automatically): `tqdm`, `plotly`, `pandas`, `python-dotenv`, `beautifulsoup4`, `lxml`, `python-dateutil`
 - For the IMAP fetch path only: a `.env` file with email credentials (an app-specific password is required for Gmail). The `.mbox` import path needs no credentials.
 
 ## Installation
 
+The project is pure Python and runs identically on Linux, macOS, and Windows.
+
+**Linux / macOS (bash/zsh):**
+
+```bash
+git clone https://github.com/fabricioguidine/sisifus-analytics.git
+cd sisifus-analytics
+
+python -m venv .venv
+source .venv/bin/activate
+
+# Runtime dependencies
+pip install -r requirements.txt
+# Or install the package with dev/test tooling
+pip install -e ".[dev]"
+```
+
+**Windows (PowerShell):**
+
 ```powershell
 git clone https://github.com/fabricioguidine/sisifus-analytics.git
 cd sisifus-analytics
 
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
 # Runtime dependencies
 pip install -r requirements.txt
-
-# Or install the package (adds the dev/notebooks extras)
+# Or install the package with dev/test tooling
 pip install -e ".[dev]"
 ```
 
 To use the IMAP fetch path, copy the credentials template and fill it in:
 
-```powershell
-Copy-Item env.template .env
-# Edit .env: EMAIL_ADDRESS, EMAIL_PASSWORD (app-specific), IMAP_SERVER, IMAP_PORT
+```bash
+# Linux / macOS
+cp env.template .env
 ```
+
+```powershell
+# Windows (PowerShell)
+Copy-Item env.template .env
+```
+
+Then edit `.env`: `EMAIL_ADDRESS`, `EMAIL_PASSWORD` (app-specific), `IMAP_SERVER`, `IMAP_PORT`.
 
 ## Usage
 
@@ -193,8 +221,8 @@ sisifus-analytics/
 │   ├── classifier.py      # Keyword/regex classification + company extraction
 │   ├── analytics.py       # Stats, accuracy, Sankey diagram, JSON/CSV/HTML output
 │   └── main.py            # Orchestrator CLI (--use-input, --extract-only, --months, --year)
-├── tests/                 # pytest suite for classifier and analytics
-├── .github/workflows/ci.yml  # Lint (ruff + mypy), test matrix (3.10–3.12), build
+├── tests/                 # pytest suite: unit (classifier, analytics) + end-to-end
+├── .github/workflows/ci.yml  # Lint (ruff + mypy), test matrix (Linux/macOS/Windows x 3.11-3.13), build
 ├── pyproject.toml         # Project metadata, ruff/mypy/pytest/coverage config
 ├── requirements.txt       # Runtime dependencies
 └── env.template           # IMAP credentials template
@@ -202,11 +230,22 @@ sisifus-analytics/
 
 ## Testing
 
-```powershell
+```bash
+# Linux / macOS / Windows (with the dev extras installed)
 pytest
 ```
 
-The suite (`tests/test_classifier.py`, `tests/test_analytics.py`) covers per-status classification, priority rules, job-related filtering, company extraction, confidence scoring, batch processing, and analytics aggregation. CI runs ruff, ruff-format, mypy, and pytest with coverage across Python 3.10–3.12.
+The suite is hermetic and OS-agnostic - no live network, no fixed paths (all I/O goes through `tmp_path`):
+
+- `tests/test_classifier.py` - per-status classification, priority rules, job-related filtering, company extraction, confidence scoring, batch processing.
+- `tests/test_analytics.py` - analytics aggregation and a pandas/pandera schema check on the classified-record shape.
+- `tests/test_e2e.py` - end-to-end runs over a synthetic `.mbox`: import -> classify -> analyse -> write JSON/CSV/Sankey HTML, an `EmailStorage` save/load round-trip, and a headless `python -m src.main --use-input` CLI run.
+
+CI runs ruff, ruff-format, and mypy on Ubuntu, and pytest with coverage across a matrix of `ubuntu-latest` / `macos-latest` / `windows-latest` x Python `3.11` / `3.12` / `3.13`.
+
+### Cross-platform notes
+
+All filesystem paths are resolved with `pathlib` relative to the package root (no hardcoded `/tmp`, drive letters, or cwd-relative paths), every file is read/written with `encoding="utf-8"`, and the CLI entry points guard `sys.stdout.reconfigure(encoding="utf-8")` so status glyphs render on legacy Windows code pages and degrade gracefully elsewhere.
 
 ## Limitations
 

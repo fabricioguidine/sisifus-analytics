@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from src.config import EMAIL_ADDRESS, EMAIL_PASSWORD
+from src.config import EMAIL_ADDRESS, EMAIL_PASSWORD, enable_utf8_stdout
 from src.email_parser import EmailParser
 from src.email_storage import EmailStorage
 
@@ -78,6 +78,7 @@ def extract_emails(limit: Optional[int] = None, overwrite: bool = True):
 
 def main():
     """Main function with command-line arguments"""
+    enable_utf8_stdout()
     parser = argparse.ArgumentParser(
         description="Extract emails from email server and save to input folder"
     )

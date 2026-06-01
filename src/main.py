@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from src.analytics import AnalyticsGenerator
 from src.classifier import EmailClassifier
-from src.config import INPUT_DIR, OUTPUT_DIR
+from src.config import INPUT_DIR, OUTPUT_DIR, enable_utf8_stdout
 from src.email_parser import EmailParser
 from src.email_storage import EmailStorage
 
@@ -189,6 +189,7 @@ def fetch_emails_from_server() -> Optional[list]:
 
 def main():
     """Main function to parse emails and generate analytics"""
+    enable_utf8_stdout()
     parser = argparse.ArgumentParser(description="Job Application Email Parser and Analytics")
     parser.add_argument(
         "--use-input",

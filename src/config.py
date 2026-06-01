@@ -1,6 +1,7 @@
 """Configuration settings for the application"""
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -31,3 +32,14 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 ANALYTICS_JSON = OUTPUT_DIR / "analytics.json"
 ANALYTICS_CSV = OUTPUT_DIR / "applications.csv"
 SANKEY_HTML = OUTPUT_DIR / "sankey_diagram.html"
+
+
+def enable_utf8_stdout() -> None:
+    """Best-effort: force UTF-8 on stdout/stderr so glyphs print on Windows cp1252 consoles."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (ValueError, OSError):
+                pass

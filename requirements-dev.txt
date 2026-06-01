@@ -1,0 +1,12 @@
+# Development / test dependencies. Runtime deps live in requirements.txt and
+# pyproject.toml; this file mirrors the [dev] extra for tooling that prefers a
+# plain requirements file (CI caching, pip install -r).
+-r requirements.txt
+pytest>=8.0
+pytest-cov>=4.1.0
+ruff>=0.4.0
+mypy>=1.10.0
+pandera>=0.20.0
+pre-commit>=3.7.0
+types-python-dateutil
+pandas-stubs

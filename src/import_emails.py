@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from src.config import INPUT_DIR
+from src.config import INPUT_DIR, enable_utf8_stdout
 from src.email_importer import EmailImporter
 from src.email_storage import EmailStorage
 
@@ -92,6 +92,7 @@ def import_emails(
 
 def main():
     """Main function with command-line arguments"""
+    enable_utf8_stdout()
     parser = argparse.ArgumentParser(description="Import emails from Google Takeout .mbox files")
     parser.add_argument(
         "source",

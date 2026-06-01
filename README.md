@@ -2,13 +2,7 @@
 
 <img src=".github/assets/banner.svg" alt="sisifus-analytics" width="100%" />
 
-[![CI](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/fabricioguidine/sisifus-analytics/branch/main/graph/badge.svg)](https://codecov.io/gh/fabricioguidine/sisifus-analytics)
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![CI](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/fabricioguidine/sisifus-analytics/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/fabricioguidine/sisifus-analytics/branch/main/graph/badge.svg)](https://codecov.io/gh/fabricioguidine/sisifus-analytics) [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 </div>
 
@@ -225,4 +219,4 @@ The suite (`tests/test_classifier.py`, `tests/test_analytics.py`) covers per-sta
 
 ## License
 
-[MIT](LICENSE) © fabricioguidine
+[MIT](LICENSE)
